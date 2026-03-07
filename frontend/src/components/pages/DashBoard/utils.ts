@@ -6,8 +6,9 @@ interface BadgeStyle {
 
 type BadgeMap = Record<string, BadgeStyle>;
 
-export function timeAgo(date: Date): string {
-  const s = Math.floor((Date.now() - date.getTime()) / 1000);
+export function timeAgo(date: Date | string): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  const s = Math.floor((Date.now() - d.getTime()) / 1000);
   if (s < 60) return "just now";
   const m = Math.floor(s / 60);
   if (m < 60) return `${m}m ago`;

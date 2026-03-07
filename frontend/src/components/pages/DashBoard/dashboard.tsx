@@ -1,30 +1,57 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { Menu, Search, Sun, Moon, Sparkles } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { Snippet } from "./types";
-import { sampleSnippets } from "./constants";
 import { getThemeTokens } from "./utils";
 import { Sidebar } from "./components/Sidebar";
 import { SearchModal } from "./components/SearchModal";
 import { EditorPanel } from "./components/EditorPanel";
 import { AiPanel } from "./components/AiPanel";
+import api from "@/lib/axios";
 
 export default function Dashboard() {
   const { user, setUser } = useAuth();
   const navigate = useNavigate();
 
-  const [snippets] = useState<Snippet[]>(sampleSnippets);
-  const [activeId, setActiveId] = useState(sampleSnippets[0].id);
-  const [openTabs, setOpenTabs] = useState<string[]>([sampleSnippets[0].id]);
+  const [snippets, setSnippets] = useState<Snippet[]>([]);
+  const [activeId, setActiveId] = useState<string>("");
+  const [openTabs, setOpenTabs] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isDark, setIsDark] = useState(true);
+  const [loading, setLoading] = useState(true);
 
-  const active = useMemo(() => snippets.find(s => s.id === activeId) ?? snippets[0], [snippets, activeId]);
+  const active = useMemo(
+    () => snippets.find(s => s._id === activeId) ?? snippets[0] ?? null,
+    [snippets, activeId]
+  );
   const T = useMemo(() => getThemeTokens(isDark), [isDark]);
+
+  useEffect(() => {
+    if (!user) return;
+    const fetchSnippets = async () => {
+      try {
+        const res = await api.get("/snippets");
+        setSnippets(res.data);
+        if (res.data.length > 0) {
+          setActiveId(res.data[0]._id);
+          setOpenTabs([res.data[0]._id]);
+        }
+      } catch (err) {
+        console.error("Failed to fetch snippets:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSnippets();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) navigate("/login");
+  }, [user, navigate]);
 
   function handleSelectSnippet(id: string) {
     setActiveId(id);
@@ -42,7 +69,44 @@ export default function Dashboard() {
     });
   }
 
+  const handleCreateSnippet = useCallback(async (title: string, language: string, code: string) => {
+    try {
+      const res = await api.post("/snippets", { title, language, code });
+      const newSnippet = res.data;
+      setSnippets(prev => [newSnippet, ...prev]);
+      setActiveId(newSnippet._id);
+      setOpenTabs(prev => [newSnippet._id, ...prev]);
+    } catch (err) {
+      console.error("Failed to create snippet:", err);
+    }
+  }, []);
+
+  const handleDeleteSnippet = useCallback(async (id: string) => {
+    try {
+      await api.delete(`/snippets/${id}`);
+      setSnippets(prev => {
+        const next = prev.filter(s => s._id !== id);
+        if (activeId === id && next.length > 0) setActiveId(next[0]._id);
+        if (activeId === id && next.length === 0) setActiveId("");
+        return next;
+      });
+      setOpenTabs(prev => prev.filter(t => t !== id));
+    } catch (err) {
+      console.error("Failed to delete snippet:", err);
+    }
+  }, [activeId]);
+
+  const handleUpdateCode = useCallback(async (id: string, code: string) => {
+    try {
+      await api.put(`/snippets/${id}`, { code });
+      setSnippets(prev => prev.map(s => s._id === id ? { ...s, code } : s));
+    } catch (err) {
+      console.error("Failed to update snippet:", err);
+    }
+  }, []);
+
   function handleLogout() {
+    document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
     setUser(null);
     navigate("/login");
   }
@@ -62,6 +126,14 @@ export default function Dashboard() {
     ::-webkit-scrollbar-thumb{background:${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.12)"};border-radius:4px}
     *{scrollbar-width:thin;scrollbar-color:${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.12)"} transparent}
   `;
+
+  if (loading) {
+    return (
+      <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0f1117", color: "rgba(255,255,255,0.5)", fontFamily: "'Inter',sans-serif", fontSize: 14 }}>
+        Loading your workspace...
+      </div>
+    );
+  }
 
   return (
     <div style={{ height: "100vh", display: "flex", overflow: "hidden", background: T.bg, color: T.text, fontFamily: "'Inter',system-ui,sans-serif" }}>
@@ -89,6 +161,8 @@ export default function Dashboard() {
           onCloseSidebar={() => setSidebarOpen(false)}
           onToggleTheme={() => setIsDark(v => !v)}
           onLogout={handleLogout}
+          onCreateSnippet={handleCreateSnippet}
+          onDeleteSnippet={handleDeleteSnippet}
           T={T}
         />
       )}
@@ -122,16 +196,26 @@ export default function Dashboard() {
           </div>
         </header>
 
-        <EditorPanel
-          active={active}
-          openTabs={openTabs}
-          activeId={activeId}
-          snippets={snippets}
-          isDark={isDark}
-          onSetActiveId={setActiveId}
-          onCloseTab={handleCloseTab}
-          T={T}
-        />
+        {/* Empty state */}
+        {snippets.length === 0 ? (
+          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12, color: T.textMuted, fontFamily: "'Inter',sans-serif" }}>
+            <div style={{ fontSize: 32 }}>📝</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: T.text }}>No snippets yet</div>
+            <div style={{ fontSize: 12 }}>Click "New Snippet" to create your first one</div>
+          </div>
+        ) : (
+          <EditorPanel
+            active={active}
+            openTabs={openTabs}
+            activeId={activeId}
+            snippets={snippets}
+            isDark={isDark}
+            onSetActiveId={setActiveId}
+            onCloseTab={handleCloseTab}
+            onUpdateCode={handleUpdateCode}
+            T={T}
+          />
+        )}
       </main>
 
       {aiOpen && (

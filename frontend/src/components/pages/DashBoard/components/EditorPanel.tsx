@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Editor from "@monaco-editor/react";
 import { ArrowLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -7,30 +7,50 @@ import { Snippet, ThemeTokens } from "../types";
 import { langColors, langDotClass } from "../constants";
 
 interface Props {
-  active: Snippet;
+  active: Snippet | null;
   openTabs: string[];
   activeId: string;
   snippets: Snippet[];
   isDark: boolean;
   onSetActiveId: (id: string) => void;
   onCloseTab: (e: React.MouseEvent, id: string) => void;
+  onUpdateCode: (id: string, code: string) => Promise<void>;
   T: ThemeTokens;
 }
 
-export function EditorPanel({ active, openTabs, activeId, snippets, isDark, onSetActiveId, onCloseTab, T }: Props) {
+export function EditorPanel({ active, openTabs, activeId, snippets, isDark, onSetActiveId, onCloseTab, onUpdateCode, T }: Props) {
   const [previewOpen, setPreviewOpen] = useState(false);
-  const canPreview = active.language === "html";
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => { if (!canPreview) setPreviewOpen(false); }, [active.id, canPreview]);
+  const canPreview = active?.language === "html";
+
+  useEffect(() => {
+    if (!canPreview) setPreviewOpen(false);
+  }, [active?._id, canPreview]);
+
+  function handleCodeChange(value: string | undefined) {
+    if (!active || value === undefined) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      onUpdateCode(active._id, value);
+    }, 1000); 
+  }
+
+  if (!active) {
+    return (
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: T.textMuted, fontFamily: "'Inter',sans-serif", fontSize: 13 }}>
+        Select a snippet to start editing
+      </div>
+    );
+  }
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
-      {/* Tabs header */}
       <header style={{ height: 48, flexShrink: 0, display: "flex", alignItems: "stretch", background: T.headerBg, borderBottom: `1px solid ${T.border}`, backdropFilter: "blur(12px)", overflow: "hidden" }}>
         <div style={{ display: "flex", alignItems: "stretch", flex: 1, overflow: "hidden" }}>
           {openTabs.map(tabId => {
-            const sn = snippets.find(s => s.id === tabId);
+            const sn = snippets.find(s => s._id === tabId);
             if (!sn) return null;
             const isActive = tabId === activeId;
             return (
@@ -41,16 +61,17 @@ export function EditorPanel({ active, openTabs, activeId, snippets, isDark, onSe
               >
                 <div style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0 }} className={langDotClass[sn.language]} />
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 110 }}>{sn.title}</span>
-                <span onClick={e => onCloseTab(e, tabId)} style={{ fontSize: 11, marginLeft: 2, flexShrink: 0, color: T.textMuted, padding: "1px 3px", borderRadius: 3 }}
+                <span onClick={e => onCloseTab(e, tabId)}
+                  style={{ fontSize: 11, marginLeft: 2, flexShrink: 0, color: T.textMuted, padding: "1px 3px", borderRadius: 3 }}
                   onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = T.text; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = T.textMuted; }}>✕</span>
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = T.textMuted; }}
+                >✕</span>
               </div>
             );
           })}
         </div>
       </header>
 
-      {/* Editor or Preview */}
       <div style={{ flex: 1, display: "flex", padding: 18, overflow: "hidden" }}>
         {!previewOpen && (
           <div style={{ display: "flex", flexDirection: "column", borderRadius: 14, overflow: "hidden", border: `1px solid ${T.border}`, background: T.editorPanelBg, flex: 1, boxShadow: isDark ? "0 4px 32px rgba(0,0,0,0.3)" : "0 4px 24px rgba(0,0,0,0.08)" }}>
@@ -80,7 +101,12 @@ export function EditorPanel({ active, openTabs, activeId, snippets, isDark, onSe
               </div>
             </div>
             <div style={{ flex: 1, overflow: "hidden" }}>
-              <Editor height="100%" theme={isDark ? "vs-dark" : "light"} language={active.language} value={active.code}
+              <Editor
+                height="100%"
+                theme={isDark ? "vs-dark" : "light"}
+                language={active.language}
+                value={active.code}
+                onChange={handleCodeChange}
                 options={{ fontSize: 14, minimap: { enabled: false }, padding: { top: 20 }, scrollBeyondLastLine: false, fontFamily: "'JetBrains Mono',monospace", lineNumbersMinChars: 3, scrollbar: { vertical: "auto", horizontal: "hidden" } }}
               />
             </div>

@@ -61,7 +61,8 @@ export function SettingsModal({ open, onClose, isDark, user, setUser, onLogout }
     setLoading(true); setNameErr(false); setNameMsg("");
     try {
       const res = await api.put("/auth/update-name", { name: name.trim() });
-      setUser(res.data.user ?? { ...user, name: name.trim() });
+      const u = res.data.user;
+      setUser({ id: u._id, name: u.fullName, email: u.email });
       setNameMsg("Name updated successfully.");
     } catch {
       setNameErr(true); setNameMsg("Failed to update name. Please try again.");

@@ -1,9 +1,6 @@
 const userModel = require('../models/user.model');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const { OAuth2Client } = require('google-auth-library');
-
-const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const registerUser = async (req, res) => {
     try {
@@ -12,16 +9,11 @@ const registerUser = async (req, res) => {
         if (existingUser) return res.status(400).json({ message: 'User already exists' });
 
         const hash = await bcrypt.hash(password, 10);
-        
-        const newUser = new userModel({
-            fullName: name,
-            email,
-            password: hash 
-        });
+        const newUser = new userModel({ fullName: name, email, password: hash });
         await newUser.save();
 
         const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET);
-        res.cookie('token', token, { httpOnly: true }); 
+        res.cookie('token', token, { httpOnly: true });
         res.status(201).json({ message: 'User registered successfully' });
     } catch (error) {
         console.error('Error registering user:', error);
@@ -33,7 +25,7 @@ const loginUser = async (req, res) => {
     try {
         const { email, password } = req.body;
         const user = await userModel.findOne({ email });
-        if (!user) return res.status(400).json({ message: 'Invalid email or password' });
+        if (!user) return res.status(400).json({ message: 'No account found with this email. Please sign up first.' });
 
         if (!user.password) {
             return res.status(400).json({ message: 'This account uses Google Sign-In. Please continue with Google.' });
@@ -44,38 +36,32 @@ const loginUser = async (req, res) => {
 
         const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
         res.cookie('token', token, { httpOnly: true });
-        res.status(200).json({ message: 'User logged in successfully' });
+
+        res.status(200).json({
+            message: 'User logged in successfully',
+            user: { _id: user._id, fullName: user.fullName, email: user.email }
+        });
     } catch (error) {
         console.error('Error logging in user:', error);
         res.status(500).json({ message: 'Server error' });
     }
 };
 
-
 const googleAuth = async (req, res) => {
     try {
         const { credential } = req.body;
+        if (!credential) return res.status(400).json({ message: 'Google credential is required' });
 
-        if (!credential) {
-            return res.status(400).json({ message: 'Google credential is required' });
-        }
-
-        // fetch user info from Google using the access_token
         const googleRes = await fetch(
             'https://www.googleapis.com/oauth2/v3/userinfo',
             { headers: { Authorization: `Bearer ${credential}` } }
         );
-
-        if (!googleRes.ok) {
-            return res.status(400).json({ message: 'Invalid Google token' });
-        }
+        if (!googleRes.ok) return res.status(400).json({ message: 'Invalid Google token' });
 
         const payload = await googleRes.json();
         const { sub: googleId, email, name } = payload;
 
-        // check if user already exists
         let user = await userModel.findOne({ email });
-
         if (user) {
             const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
             res.cookie('token', token, { httpOnly: true });
@@ -85,13 +71,7 @@ const googleAuth = async (req, res) => {
             });
         }
 
-        // new user — create account
-        const newUser = new userModel({
-            fullName: name,
-            email,
-            googleId,
-            password: null,
-        });
+        const newUser = new userModel({ fullName: name, email, googleId, password: null });
         await newUser.save();
 
         const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET);
@@ -100,11 +80,79 @@ const googleAuth = async (req, res) => {
             message: 'Account created with Google',
             user: { _id: newUser._id, fullName: newUser.fullName, email: newUser.email }
         });
-
     } catch (error) {
         console.error('Google auth error:', error);
         res.status(500).json({ message: 'Google authentication failed' });
     }
 };
 
-module.exports = { registerUser, loginUser, googleAuth };
+// ── update name ────────────────────────────────────────────
+const updateName = async (req, res) => {
+    try {
+        const { name } = req.body;
+        if (!name?.trim()) return res.status(400).json({ message: 'Name cannot be empty' });
+
+        const user = await userModel.findByIdAndUpdate(
+            req.user.id,
+            { fullName: name.trim() },
+            { new: true }
+        ).select('-password');
+
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        res.status(200).json({
+            message: 'Name updated successfully',
+            user: { _id: user._id, fullName: user.fullName, email: user.email }
+        });
+    } catch (error) {
+        console.error('Error updating name:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+// ── change password ────────────────────────────────────────
+const changePassword = async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({ message: 'All fields are required' });
+        }
+        if (newPassword.length < 6) {
+            return res.status(400).json({ message: 'Password must be at least 6 characters' });
+        }
+
+        const user = await userModel.findById(req.user.id);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        if (!user.password) {
+            return res.status(400).json({ message: 'Google accounts cannot change password here' });
+        }
+
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) return res.status(400).json({ message: 'Current password is incorrect' });
+
+        user.password = await bcrypt.hash(newPassword, 10);
+        await user.save();
+
+        res.status(200).json({ message: 'Password changed successfully' });
+    } catch (error) {
+        console.error('Error changing password:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+// ── delete account ─────────────────────────────────────────
+const deleteAccount = async (req, res) => {
+    try {
+        const user = await userModel.findByIdAndDelete(req.user.id);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        res.clearCookie('token');
+        res.status(200).json({ message: 'Account deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting account:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+module.exports = { registerUser, loginUser, googleAuth, updateName, changePassword, deleteAccount };
