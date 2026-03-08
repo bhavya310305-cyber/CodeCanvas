@@ -4,6 +4,7 @@ const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const authRoutes = require('./routes/auth.routes');
 const snippetRoutes = require('./routes/snippet.routes');
+const aiRoutes = require('./routes/ai.routes');
 
 const app = express();
 
@@ -17,5 +18,6 @@ app.use(cookieParser());
 
 app.use('/api/auth', authRoutes);
 app.use('/api/snippets', snippetRoutes);
+app.use('/api/ai', aiRoutes);
 
 module.exports = app;

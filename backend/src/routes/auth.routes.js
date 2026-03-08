@@ -7,6 +7,9 @@ const router = express.Router();
 router.post('/register', authController.registerUser);
 router.post('/login', authController.loginUser);
 router.post('/google', authController.googleAuth);
+router.post('/logout', authController.logout);
+router.post('/forgot-password', authController.forgotPassword);
+router.post('/reset-password/:token', authController.resetPassword);
 
 router.get('/me', protect, async (req, res) => {
     try {
@@ -18,7 +21,6 @@ router.get('/me', protect, async (req, res) => {
     }
 });
 
-//    settings routes
 router.put('/update-name', protect, authController.updateName);
 router.put('/change-password', protect, authController.changePassword);
 router.delete('/delete-account', protect, authController.deleteAccount);

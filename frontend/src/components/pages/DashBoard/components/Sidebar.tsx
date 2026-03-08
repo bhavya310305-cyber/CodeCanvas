@@ -77,10 +77,12 @@ export function Sidebar({ snippets, activeId, isDark, user, setUser, onSelectSni
   }
 
   const inputStyle: React.CSSProperties = {
-    width: "100%", padding: "8px 10px", borderRadius: 8, fontSize: 12,
-    background: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
-    border: `1px solid ${T.border}`, color: T.text,
-    fontFamily: "'Inter',sans-serif", outline: "none", boxSizing: "border-box",
+    width: "100%", padding: "10px 12px", borderRadius: 9, fontSize: 13,
+    background: isDark ? "rgba(255,255,255,0.04)" : "rgba(15,23,42,0.05)",
+    border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "rgba(15,23,42,0.12)"}`,
+    color: T.text, fontFamily: "'Inter',sans-serif",
+    outline: "none", boxSizing: "border-box" as const,
+    transition: "border-color 0.15s",
   };
 
   return (
@@ -96,23 +98,27 @@ export function Sidebar({ snippets, activeId, isDark, user, setUser, onSelectSni
 
       {newSnippetOpen && (
         <div
-          style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.6)", backdropFilter: "blur(6px)" }}
+          style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)" }}
           onClick={() => setNewSnippetOpen(false)}
         >
           <div
-            style={{ width: "100%", maxWidth: 460, borderRadius: 16, background: isDark ? "#111827" : "#f1f5f9", border: `1px solid ${T.border}`, boxShadow: "0 24px 64px rgba(0,0,0,0.5)", overflow: "hidden" }}
+            style={{ width: "100%", maxWidth: 460, borderRadius: 16, background: isDark ? "linear-gradient(145deg,#0f172a,#111827)" : "#f8fafc", border: `1px solid ${isDark ? "rgba(59,130,246,0.2)" : "rgba(15,23,42,0.12)"}`, boxShadow: isDark ? "0 24px 80px rgba(0,0,0,0.7),0 0 0 1px rgba(59,130,246,0.05),inset 0 1px 0 rgba(255,255,255,0.05)" : "0 24px 64px rgba(0,0,0,0.15)", overflow: "hidden" }}
             onClick={e => e.stopPropagation()}
           >
-           
-            <div style={{ padding: "16px 20px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: T.text }}>New Snippet</div>
-              <button onClick={() => setNewSnippetOpen(false)} style={{ width: 28, height: 28, borderRadius: 7, background: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.06)", border: `1px solid ${T.border}`, cursor: "pointer", color: T.textMuted, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>✕</button>
+            <div style={{ padding: "18px 20px", borderBottom: `1px solid ${isDark ? "rgba(59,130,246,0.1)" : "rgba(15,23,42,0.08)"}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: isDark ? "rgba(37,99,235,0.05)" : "transparent" }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: T.text, display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 28, height: 28, borderRadius: 8, background: "linear-gradient(135deg,#2563eb,#4f46e5)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <Plus style={{ width: 14, height: 14, color: "white" }} />
+                </div>
+                New Snippet
+              </div>
+              <button onClick={() => setNewSnippetOpen(false)} style={{ width: 28, height: 28, borderRadius: 7, background: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.06)", border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(15,23,42,0.1)"}`, cursor: "pointer", color: T.textMuted, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>✕</button>
             </div>
 
-            <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 16 }}>
 
               <div>
-                <label style={{ fontSize: 11, fontWeight: 600, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6, display: "block" }}>Title</label>
+                <label style={{ fontSize: 11, fontWeight: 600, color: T.textMuted, textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: 6, display: "block" }}>Title</label>
                 <input
                   autoFocus
                   value={newTitle}
@@ -124,20 +130,29 @@ export function Sidebar({ snippets, activeId, isDark, user, setUser, onSelectSni
               </div>
 
               <div>
-                <label style={{ fontSize: 11, fontWeight: 600, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6, display: "block" }}>Language</label>
-                <select
-                  value={newLanguage}
-                  onChange={e => setNewLanguage(e.target.value)}
-                  style={{ ...inputStyle, cursor: "pointer" }}
-                >
-                  {LANGUAGES.map(l => (
-                    <option key={l} value={l}>{l}</option>
-                  ))}
-                </select>
+                <label style={{ fontSize: 11, fontWeight: 600, color: T.textMuted, textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: 6, display: "block" }}>Language</label>
+                <div style={{ position: "relative" }}>
+                  <select
+                    value={newLanguage}
+                    onChange={e => setNewLanguage(e.target.value)}
+                    style={{ ...inputStyle, cursor: "pointer", appearance: "none", WebkitAppearance: "none", background: isDark ? "#1e293b" : "#f1f5f9", color: T.text, paddingRight: 36 }}
+                  >
+                    {LANGUAGES.map(l => (
+                      <option key={l} value={l} style={{ background: isDark ? "#1e293b" : "#f1f5f9", color: isDark ? "#e2e8f0" : "#0f172a", padding: "8px 12px" }}>
+                        {l}
+                      </option>
+                    ))}
+                  </select>
+                  <div style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: T.textMuted }}>
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                      <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
+                </div>
               </div>
 
               <div>
-                <label style={{ fontSize: 11, fontWeight: 600, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6, display: "block" }}>
+                <label style={{ fontSize: 11, fontWeight: 600, color: T.textMuted, textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: 6, display: "block" }}>
                   Code <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(optional)</span>
                 </label>
                 <textarea
@@ -145,21 +160,21 @@ export function Sidebar({ snippets, activeId, isDark, user, setUser, onSelectSni
                   onChange={e => setNewCode(e.target.value)}
                   placeholder="Paste your code here..."
                   rows={5}
-                  style={{ ...inputStyle, resize: "vertical", lineHeight: 1.5 }}
+                  style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }}
                 />
               </div>
 
               <div style={{ display: "flex", gap: 8, paddingTop: 4 }}>
                 <button
                   onClick={() => setNewSnippetOpen(false)}
-                  style={{ flex: 1, padding: "9px 0", borderRadius: 9, background: "transparent", border: `1px solid ${T.border}`, color: T.textMuted, fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "'Inter',sans-serif" }}
+                  style={{ flex: 1, padding: "9px 0", borderRadius: 9, background: "transparent", border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "rgba(15,23,42,0.12)"}`, color: T.textMuted, fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "'Inter',sans-serif", transition: "all 0.15s" }}
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleCreate}
                   disabled={!newTitle.trim() || creating}
-                  style={{ flex: 2, padding: "9px 0", borderRadius: 9, background: !newTitle.trim() ? "rgba(37,99,235,0.4)" : "linear-gradient(135deg,#2563eb,#4f46e5)", border: "none", color: "white", fontSize: 13, fontWeight: 600, cursor: !newTitle.trim() ? "not-allowed" : "pointer", fontFamily: "'Inter',sans-serif", opacity: creating ? 0.7 : 1 }}
+                  style={{ flex: 2, padding: "9px 0", borderRadius: 9, background: !newTitle.trim() ? "rgba(37,99,235,0.3)" : "linear-gradient(135deg,#2563eb,#4f46e5)", border: "none", color: "white", fontSize: 13, fontWeight: 600, cursor: !newTitle.trim() ? "not-allowed" : "pointer", fontFamily: "'Inter',sans-serif", opacity: creating ? 0.7 : 1, boxShadow: newTitle.trim() ? "0 0 20px rgba(37,99,235,0.4)" : "none", transition: "all 0.2s" }}
                 >
                   {creating ? "Creating..." : "Create Snippet"}
                 </button>
@@ -169,8 +184,7 @@ export function Sidebar({ snippets, activeId, isDark, user, setUser, onSelectSni
         </div>
       )}
 
-      <aside style={{ width: 260, flexShrink: 0, display: "flex", flexDirection: "column", background: T.sidebarBg, borderRight: `1px solid ${T.border}`, overflow: "hidden" }}>
-
+      <aside style={{ width: 260, height: "100vh", flexShrink: 0, display: "flex", flexDirection: "column", background: T.sidebarBg, borderRight: `1px solid ${T.border}`, overflow: "hidden" }}>
 
         <div style={{ height: 56, padding: "0 16px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>
           <CodebaseLogo isDark={isDark} />
@@ -181,7 +195,6 @@ export function Sidebar({ snippets, activeId, isDark, user, setUser, onSelectSni
           </button>
         </div>
 
-        
         <div style={{ padding: "14px 14px 10px" }}>
           <button
             onClick={() => setNewSnippetOpen(true)}
@@ -190,12 +203,10 @@ export function Sidebar({ snippets, activeId, isDark, user, setUser, onSelectSni
           </button>
         </div>
 
-        
         <div style={{ padding: "4px 18px 8px" }}>
           <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", fontWeight: 700, color: T.textMuted }}>My Snippets</span>
         </div>
 
-        
         <div style={{ flex: 1, overflowY: "auto", padding: "0 10px" }}>
           {snippets.length === 0 && (
             <div style={{ padding: "20px 8px", textAlign: "center", color: T.textMuted, fontSize: 12 }}>
@@ -225,7 +236,6 @@ export function Sidebar({ snippets, activeId, isDark, user, setUser, onSelectSni
                   </div>
                 </button>
 
-                
                 {isHovered && (
                   <button
                     onClick={e => { e.stopPropagation(); onDeleteSnippet(sn._id); }}
@@ -239,7 +249,6 @@ export function Sidebar({ snippets, activeId, isDark, user, setUser, onSelectSni
           })}
         </div>
 
-        
         <div ref={profileRef} style={{ flexShrink: 0, padding: "10px 12px 14px", borderTop: `1px solid ${T.border}`, position: "relative" }}>
           {profileOpen && (
             <div style={{ position: "absolute", bottom: "100%", left: 12, right: 12, marginBottom: 8, borderRadius: 12, background: T.popupBg, border: `1px solid ${T.popupBorder}`, boxShadow: isDark ? "0 -8px 32px rgba(0,0,0,0.5)" : "0 -8px 32px rgba(0,0,0,0.12)", overflow: "hidden", zIndex: 50 }}>

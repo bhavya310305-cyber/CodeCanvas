@@ -22,14 +22,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     const checkAuth = async () => {
-    try {
-      const res = await api.get("/auth/me");
-      setUser({
-        id: res.data._id,
-        name: res.data.fullName,
-        email: res.data.email,
-      });
-    } catch (err: unknown) {
+      try {
+        const res = await api.get("/auth/me");
+        setUser({
+          id: res.data._id,
+          name: res.data.fullName,
+          email: res.data.email,
+        });
+      } catch (err: unknown) {
         if (axios.isAxiosError(err)) {
           if (err.response?.status === 401) {
             console.log("User not logged in - this is normal.");
@@ -40,11 +40,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           console.error("An unexpected error occurred:", err);
         }
         setUser(null);
-    } finally {
-      setLoading(false);
-    }
-  };
+      } finally {
+        setLoading(false);
+      }
+    };
     checkAuth();
+
+    const interceptor = api.interceptors.response.use(
+      res => res,
+      err => {
+        if (axios.isAxiosError(err) && err.response?.status === 401) {
+          setUser(null);
+        }
+        return Promise.reject(err);
+      }
+    );
+
+    return () => api.interceptors.response.eject(interceptor);
   }, []);
 
   return (

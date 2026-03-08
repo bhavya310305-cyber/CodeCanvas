@@ -25,21 +25,20 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   const active = useMemo(
-    () => snippets.find(s => s._id === activeId) ?? snippets[0] ?? null,
+    () => snippets.find(s => s._id === activeId) ?? null,
     [snippets, activeId]
   );
   const T = useMemo(() => getThemeTokens(isDark), [isDark]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
     const fetchSnippets = async () => {
       try {
         const res = await api.get("/snippets");
         setSnippets(res.data);
-        if (res.data.length > 0) {
-          setActiveId(res.data[0]._id);
-          setOpenTabs([res.data[0]._id]);
-        }
       } catch (err) {
         console.error("Failed to fetch snippets:", err);
       } finally {
@@ -64,7 +63,9 @@ export default function Dashboard() {
     e.stopPropagation();
     setOpenTabs(prev => {
       const next = prev.filter(t => t !== id);
-      if (activeId === id && next.length > 0) setActiveId(next[next.length - 1]);
+      if (activeId === id) {
+        setActiveId(next.length > 0 ? next[next.length - 1] : "");
+      }
       return next;
     });
   }
@@ -86,8 +87,7 @@ export default function Dashboard() {
       await api.delete(`/snippets/${id}`);
       setSnippets(prev => {
         const next = prev.filter(s => s._id !== id);
-        if (activeId === id && next.length > 0) setActiveId(next[0]._id);
-        if (activeId === id && next.length === 0) setActiveId("");
+        if (activeId === id) setActiveId(next.length > 0 ? next[0]._id : "");
         return next;
       });
       setOpenTabs(prev => prev.filter(t => t !== id));
@@ -105,11 +105,16 @@ export default function Dashboard() {
     }
   }, []);
 
-  function handleLogout() {
-    document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+  async function handleLogout() {
+  try {
+    await api.post("/auth/logout");
+  } catch (err) {
+    console.error("Logout error:", err);
+  } finally {
     setUser(null);
     navigate("/login");
   }
+}
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -150,31 +155,40 @@ export default function Dashboard() {
         T={T}
       />
 
-      {sidebarOpen && (
-        <Sidebar
-          snippets={snippets}
-          activeId={activeId}
-          isDark={isDark}
-          user={user}
-          setUser={setUser}
-          onSelectSnippet={handleSelectSnippet}
-          onCloseSidebar={() => setSidebarOpen(false)}
-          onToggleTheme={() => setIsDark(v => !v)}
-          onLogout={handleLogout}
-          onCreateSnippet={handleCreateSnippet}
-          onDeleteSnippet={handleDeleteSnippet}
-          T={T}
-        />
-      )}
+      {/* Sidebar — push animation using width transition */}
+      <div style={{
+        width: sidebarOpen ? 260 : 0,
+        minWidth: sidebarOpen ? 260 : 0,
+        overflow: "hidden",
+        transition: "width 0.3s cubic-bezier(0.4,0,0.2,1), min-width 0.3s cubic-bezier(0.4,0,0.2,1)",
+        flexShrink: 0,
+      }}>
+        <div style={{ width: 260, height: "100vh" }}>
+          <Sidebar
+            snippets={snippets}
+            activeId={activeId}
+            isDark={isDark}
+            user={user}
+            setUser={setUser}
+            onSelectSnippet={handleSelectSnippet}
+            onCloseSidebar={() => setSidebarOpen(false)}
+            onToggleTheme={() => setIsDark(v => !v)}
+            onLogout={handleLogout}
+            onCreateSnippet={handleCreateSnippet}
+            onDeleteSnippet={handleDeleteSnippet}
+            T={T}
+          />
+        </div>
+      </div>
 
       <main style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative", background: T.bg }}>
         {isDark && <div style={{ position: "absolute", top: 0, right: 0, width: 500, height: 500, background: "radial-gradient(ellipse,rgba(37,99,235,0.06) 0%,transparent 70%)", pointerEvents: "none", borderRadius: "50%" }} />}
 
-        {/* Navbar */}
-        <header style={{ height: 48, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", background: T.headerBg, borderBottom: `1px solid ${T.border}`, backdropFilter: "blur(12px)", padding: "0 14px", gap: 8 }}>
+        <header style={{ height: 52, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", background: T.headerBg, borderBottom: `1px solid ${T.border}`, backdropFilter: "blur(12px)", padding: "0 16px", gap: 8, position: "relative", zIndex: 10 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {!sidebarOpen && (
-              <button onClick={() => setSidebarOpen(true)} style={{ width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "none", cursor: "pointer", color: T.textMuted, borderRadius: 8 }}
+              <button onClick={() => setSidebarOpen(true)}
+                style={{ width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "none", cursor: "pointer", color: T.textMuted, borderRadius: 8 }}
                 onMouseEnter={e => { e.currentTarget.style.color = T.text; }}
                 onMouseLeave={e => { e.currentTarget.style.color = T.textMuted; }}>
                 <Menu style={{ width: 16, height: 16 }} />
@@ -182,21 +196,36 @@ export default function Dashboard() {
             )}
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <button onClick={() => setSearchOpen(true)} style={{ display: "flex", alignItems: "center", gap: 7, padding: "5px 12px", borderRadius: 8, background: T.inputBg, border: `1px solid ${T.inputBorder}`, color: T.textMuted, cursor: "pointer", fontSize: 12, fontFamily: "'Inter',sans-serif" }}>
-              <Search style={{ width: 13, height: 13 }} /><span>Search...</span>
-              <kbd style={{ fontSize: 10, padding: "1px 5px", borderRadius: 4, marginLeft: 2, background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.08)", color: T.textMuted, fontFamily: "monospace", border: `1px solid ${T.border}` }}>⌘K</kbd>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button
+              onClick={() => setSearchOpen(true)}
+              style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 16px", borderRadius: 8, background: T.inputBg, border: `1px solid ${T.inputBorder}`, color: T.text, cursor: "pointer", fontSize: 13, fontFamily: "'Inter',sans-serif", minWidth: 200, transition: "border-color 0.15s" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.25)"; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = T.inputBorder; }}
+            >
+              <Search style={{ width: 14, height: 14, flexShrink: 0 }} />
+              <span style={{ flex: 1 }}>Search...</span>
+              <kbd style={{ fontSize: 11, padding: "2px 6px", borderRadius: 4, background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.08)", color: T.textMuted, fontFamily: "monospace", border: `1px solid ${T.border}`, flexShrink: 0 }}>
+                {/Mac|iPhone|iPod|iPad/.test(navigator.userAgent) ? "⌘K" : "Ctrl+K"}
+              </kbd>
             </button>
-            <button onClick={() => setIsDark(!isDark)} style={{ width: 32, height: 32, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", background: T.inputBg, border: `1px solid ${T.inputBorder}`, cursor: "pointer", color: isDark ? "#fbbf24" : "#6366f1" }}>
+
+            <button
+              onClick={() => setIsDark(!isDark)}
+              style={{ width: 34, height: 34, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", background: T.inputBg, border: `1px solid ${T.inputBorder}`, cursor: "pointer", color: isDark ? "#fbbf24" : "#6366f1", flexShrink: 0 }}
+            >
               {isDark ? <Sun style={{ width: 15, height: 15 }} /> : <Moon style={{ width: 15, height: 15 }} />}
             </button>
-            <button onClick={() => setAiOpen(v => !v)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 8, background: aiOpen ? "linear-gradient(135deg,#2563eb,#4f46e5)" : isDark ? "rgba(59,130,246,0.08)" : "rgba(59,130,246,0.1)", border: `1px solid ${aiOpen ? "transparent" : "rgba(59,130,246,0.3)"}`, color: aiOpen ? "white" : "#60a5fa", cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "'Inter',sans-serif", boxShadow: aiOpen ? "0 0 20px rgba(37,99,235,0.3)" : "none" }}>
-              <Sparkles style={{ width: 13, height: 13 }} />AI Insight
+
+            <button
+              onClick={() => setAiOpen(v => !v)}
+              style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, fontFamily: "'Inter',sans-serif", background: aiOpen ? "linear-gradient(135deg,#2563eb,#4f46e5)" : isDark ? "rgba(59,130,246,0.08)" : "rgba(59,130,246,0.1)", border: `1px solid ${aiOpen ? "transparent" : "rgba(59,130,246,0.3)"}`, color: aiOpen ? "white" : "#60a5fa", cursor: "pointer", boxShadow: aiOpen ? "0 0 20px rgba(37,99,235,0.3)" : "none", transition: "all 0.2s", flexShrink: 0 }}
+            >
+              <Sparkles style={{ width: 14, height: 14 }} />AI Insight
             </button>
           </div>
         </header>
 
-        {/* Empty state */}
         {snippets.length === 0 ? (
           <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12, color: T.textMuted, fontFamily: "'Inter',sans-serif" }}>
             <div style={{ fontSize: 32 }}>📝</div>
@@ -218,14 +247,24 @@ export default function Dashboard() {
         )}
       </main>
 
-      {aiOpen && (
-        <AiPanel
-          active={active}
-          isDark={isDark}
-          onClose={() => setAiOpen(false)}
-          T={T}
-        />
-      )}
+      {/* AI Panel — push animation using width transition */}
+      <div style={{
+        width: aiOpen ? 380 : 0,
+        minWidth: aiOpen ? 380 : 0,
+        overflow: "hidden",
+        transition: "width 0.3s cubic-bezier(0.4,0,0.2,1), min-width 0.3s cubic-bezier(0.4,0,0.2,1)",
+        flexShrink: 0,
+      }}>
+        <div style={{ width: 380, height: "100vh" }}>
+          <AiPanel
+            active={active}
+            isDark={isDark}
+            onClose={() => setAiOpen(false)}
+            onOpenSidebar={() => setSidebarOpen(true)}
+            T={T}
+          />
+        </div>
+      </div>
     </div>
   );
 }

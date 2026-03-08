@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import Editor from "@monaco-editor/react";
+import type { Monaco } from "@monaco-editor/react";
 import { ArrowLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -33,13 +34,18 @@ export function EditorPanel({ active, openTabs, activeId, snippets, isDark, onSe
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       onUpdateCode(active._id, value);
-    }, 1000); 
+    }, 1000);
   }
 
   if (!active) {
     return (
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: T.textMuted, fontFamily: "'Inter',sans-serif", fontSize: 13 }}>
-        Select a snippet to start editing
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <header style={{ height: 48, flexShrink: 0, background: T.headerBg, borderBottom: `1px solid ${T.border}` }} />
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 10 }}>
+          <div style={{ fontSize: 28 }}>{"</>"}</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>No snippet open</div>
+          <div style={{ fontSize: 12, color: T.textMuted }}>Select a snippet from the sidebar to start editing</div>
+        </div>
       </div>
     );
   }
@@ -59,7 +65,7 @@ export function EditorPanel({ active, openTabs, activeId, snippets, isDark, onSe
                 onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = T.snippetHover; }}
                 onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
               >
-                <div style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0 }} className={langDotClass[sn.language]} />
+                <div style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0 }} className={langDotClass[sn.language] ?? "bg-gray-400"} />
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 110 }}>{sn.title}</span>
                 <span onClick={e => onCloseTab(e, tabId)}
                   style={{ fontSize: 11, marginLeft: 2, flexShrink: 0, color: T.textMuted, padding: "1px 3px", borderRadius: 3 }}
@@ -95,18 +101,50 @@ export function EditorPanel({ active, openTabs, activeId, snippets, isDark, onSe
                     Open Preview
                   </button>
                 )}
-                <Badge variant="outline" className={cn("text-[10px] py-0 uppercase border-transparent font-mono", langColors[active.language])}>
+                <Badge
+                  variant="outline"
+                  className={cn("text-[10px] py-0 uppercase border-transparent font-mono", langColors[active.language] ?? (isDark ? "bg-gray-500/20 text-gray-400 border-gray-500/30" : "bg-gray-200 text-gray-700 border-gray-300"))}
+                >
                   {active.language}
                 </Badge>
               </div>
             </div>
             <div style={{ flex: 1, overflow: "hidden" }}>
               <Editor
+                key={isDark ? "dark" : "light"}
                 height="100%"
-                theme={isDark ? "vs-dark" : "light"}
+                theme={isDark ? "vs-dark" : "codecanvas-light"}
                 language={active.language}
                 value={active.code}
                 onChange={handleCodeChange}
+                beforeMount={(monaco: Monaco) => {
+                monaco.editor.defineTheme("codecanvas-light", {
+                  base: "vs",
+                  inherit: true,
+                  rules: [
+                    { token: "comment", foreground: "94a3b8", fontStyle: "italic" },
+                    { token: "keyword", foreground: "6366f1" },
+                    { token: "string", foreground: "0d9488" },
+                    { token: "number", foreground: "d97706" },
+                    { token: "type", foreground: "2563eb" },
+                  ],
+                  colors: {
+                    "editor.background": "#eef2f7",
+                    "editor.foreground": "#2d3748",
+                    "editor.lineHighlightBackground": "#e4e9f2",
+                    "editor.lineHighlightBorder": "#00000000",
+                    "editorLineNumber.foreground": "#a0aec0",
+                    "editorLineNumber.activeForeground": "#4a5568",
+                    "editorGutter.background": "#eef2f7",
+                    "editor.selectionBackground": "#c7d2fe",
+                    "editor.inactiveSelectionBackground": "#dde4f5",
+                    "editorIndentGuide.background": "#d8e0ed",
+                    "editorIndentGuide.activeBackground": "#b0bcda",
+                    "editorCursor.foreground": "#4f46e5",
+                    "editorWhitespace.foreground": "#cbd5e1",
+                  }
+                });
+                }}
                 options={{ fontSize: 14, minimap: { enabled: false }, padding: { top: 20 }, scrollBeyondLastLine: false, fontFamily: "'JetBrains Mono',monospace", lineNumbersMinChars: 3, scrollbar: { vertical: "auto", horizontal: "hidden" } }}
               />
             </div>
