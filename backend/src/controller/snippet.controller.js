@@ -1,79 +1,118 @@
 const Snippet = require('../models/snippet.model');
+const SnippetVersion = require('../models/snippetVersion.model');
+
+const MAX_VERSIONS = 10;
 
 const getSnippets = async (req, res) => {
     try {
-        const snippets = await Snippet.find({ userId: req.user.id })
-            .sort({ createdAt: -1 });
-        res.status(200).json(snippets);
+        const snippets = await Snippet.find({ user: req.user._id }).sort({ updatedAt: -1 });
+        res.json(snippets);
     } catch (error) {
-        console.error('Error fetching snippets:', error);
         res.status(500).json({ message: 'Server error' });
     }
 };
 
 const createSnippet = async (req, res) => {
     try {
-        const { title, language, code } = req.body;
-
-        if (!title?.trim()) {
-            return res.status(400).json({ message: 'Title is required' });
-        }
-        if (!language) {
-            return res.status(400).json({ message: 'Language is required' });
-        }
-
-        const snippet = new Snippet({
-            userId: req.user.id,
-            title: title.trim(),
-            language,
-            code: code ?? '',
+        const { title, code, language, tags } = req.body;
+        const snippet = await Snippet.create({
+            title,
+            code: code || '',
+            language: language || 'javascript',
+            tags: tags || [],
+            user: req.user._id,
         });
-
-        await snippet.save();
         res.status(201).json(snippet);
     } catch (error) {
-        console.error('Error creating snippet:', error);
         res.status(500).json({ message: 'Server error' });
     }
 };
 
 const updateSnippet = async (req, res) => {
     try {
-        const { id } = req.params;
-        const { title, language, code } = req.body;
+        const snippet = await Snippet.findOne({ _id: req.params.id, user: req.user._id });
+        if (!snippet) return res.status(404).json({ message: 'Snippet not found' });
 
-        const snippet = await Snippet.findOne({ _id: id, userId: req.user.id });
-        if (!snippet) {
-            return res.status(404).json({ message: 'Snippet not found' });
+        if (req.body.code !== undefined && req.body.code !== snippet.code) {
+            await SnippetVersion.create({
+                snippetId: snippet._id,
+                code: snippet.code,
+            });
+
+            const versions = await SnippetVersion.find({ snippetId: snippet._id }).sort({ createdAt: -1 });
+            if (versions.length > MAX_VERSIONS) {
+                const toDelete = versions.slice(MAX_VERSIONS).map(v => v._id);
+                await SnippetVersion.deleteMany({ _id: { $in: toDelete } });
+            }
         }
 
-        if (title !== undefined) snippet.title = title.trim();
-        if (language !== undefined) snippet.language = language;
+        const { title, code, language, tags } = req.body;
+        if (title !== undefined) snippet.title = title;
         if (code !== undefined) snippet.code = code;
+        if (language !== undefined) snippet.language = language;
+        if (tags !== undefined) snippet.tags = tags;
 
         await snippet.save();
-        res.status(200).json(snippet);
+        res.json(snippet);
     } catch (error) {
-        console.error('Error updating snippet:', error);
         res.status(500).json({ message: 'Server error' });
     }
 };
 
 const deleteSnippet = async (req, res) => {
     try {
-        const { id } = req.params;
+        const snippet = await Snippet.findOneAndDelete({ _id: req.params.id, user: req.user._id });
+        if (!snippet) return res.status(404).json({ message: 'Snippet not found' });
 
-        const snippet = await Snippet.findOne({ _id: id, userId: req.user.id });
-        if (!snippet) {
-            return res.status(404).json({ message: 'Snippet not found' });
-        }
+        await SnippetVersion.deleteMany({ snippetId: req.params.id });
 
-        await snippet.deleteOne();
-        res.status(200).json({ message: 'Snippet deleted successfully' });
+        res.json({ message: 'Snippet deleted' });
     } catch (error) {
-        console.error('Error deleting snippet:', error);
         res.status(500).json({ message: 'Server error' });
     }
 };
 
-module.exports = { getSnippets, createSnippet, updateSnippet, deleteSnippet };
+const getVersions = async (req, res) => {
+    try {
+        const snippet = await Snippet.findOne({ _id: req.params.id, user: req.user._id });
+        if (!snippet) return res.status(404).json({ message: 'Snippet not found' });
+
+        const versions = await SnippetVersion.find({ snippetId: req.params.id })
+            .sort({ createdAt: -1 })
+            .limit(MAX_VERSIONS);
+
+        res.json(versions);
+    } catch (error) {
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+const restoreVersion = async (req, res) => {
+    try {
+        const snippet = await Snippet.findOne({ _id: req.params.id, user: req.user._id });
+        if (!snippet) return res.status(404).json({ message: 'Snippet not found' });
+
+        const version = await SnippetVersion.findById(req.params.versionId);
+        if (!version) return res.status(404).json({ message: 'Version not found' });
+ 
+        await SnippetVersion.create({
+            snippetId: snippet._id,
+            code: snippet.code,
+        });
+
+        snippet.code = version.code;
+        await snippet.save();
+
+        const versions = await SnippetVersion.find({ snippetId: snippet._id }).sort({ createdAt: -1 });
+        if (versions.length > MAX_VERSIONS) {
+            const toDelete = versions.slice(MAX_VERSIONS).map(v => v._id);
+            await SnippetVersion.deleteMany({ _id: { $in: toDelete } });
+        }
+
+        res.json(snippet);
+    } catch (error) {
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+module.exports = { getSnippets, createSnippet, updateSnippet, deleteSnippet, getVersions, restoreVersion };

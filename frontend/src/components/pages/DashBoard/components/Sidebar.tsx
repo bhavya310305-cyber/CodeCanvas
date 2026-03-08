@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Plus, X, Clock, Settings, LogOut, ChevronUp, Sun, Moon, Trash2 } from "lucide-react";
+import { Plus, X, Clock, Settings, LogOut, ChevronUp, Sun, Moon, Trash2, History, MoreHorizontal } from "lucide-react";
 import { Snippet, ThemeTokens } from "../types";
 import { getBadge, getInitials, timeAgo } from "../utils";
 import { CodebaseLogo } from "./CodebaseLogo";
@@ -17,18 +17,22 @@ interface Props {
   isDark: boolean;
   user: { id: string; name: string; email: string } | null;
   setUser: (u: User | null) => void;
+  allTags: string[];
+  activeTag: string | null;
+  onSelectTag: (tag: string) => void;
   onSelectSnippet: (id: string) => void;
   onCloseSidebar: () => void;
   onToggleTheme: () => void;
   onLogout: () => void;
   onCreateSnippet: (title: string, language: string, code: string) => void;
   onDeleteSnippet: (id: string) => void;
+  onViewHistory: (id: string) => void;
   T: ThemeTokens;
 }
 
 const LANGUAGES = ["javascript", "typescript", "html", "css", "python", "java", "cpp", "json", "markdown"];
 
-export function Sidebar({ snippets, activeId, isDark, user, setUser, onSelectSnippet, onCloseSidebar, onToggleTheme, onLogout, onCreateSnippet, onDeleteSnippet, T }: Props) {
+export function Sidebar({ snippets, activeId, isDark, user, setUser, allTags, activeTag, onSelectTag, onSelectSnippet, onCloseSidebar, onToggleTheme, onLogout, onCreateSnippet, onDeleteSnippet, onViewHistory, T }: Props) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [newSnippetOpen, setNewSnippetOpen] = useState(false);
@@ -37,7 +41,11 @@ export function Sidebar({ snippets, activeId, isDark, user, setUser, onSelectSni
   const [newCode, setNewCode] = useState("");
   const [creating, setCreating] = useState(false);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
   const profileRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const displayName = user?.name ?? "";
   const displayEmail = user?.email ?? "";
@@ -53,6 +61,20 @@ export function Sidebar({ snippets, activeId, isDark, user, setUser, onSelectSni
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [profileOpen]);
+
+  // Close snippet context menu on outside click
+  useEffect(() => {
+    if (!menuOpenId) return;
+    const handler = (e: MouseEvent) => {
+      const inMenu = menuRef.current && menuRef.current.contains(e.target as Node);
+      const inDropdown = dropdownRef.current && dropdownRef.current.contains(e.target as Node);
+      if (!inMenu && !inDropdown) {
+        setMenuOpenId(null);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [menuOpenId]);
 
   async function handleCreate() {
     if (!newTitle.trim()) return;
@@ -116,7 +138,6 @@ export function Sidebar({ snippets, activeId, isDark, user, setUser, onSelectSni
             </div>
 
             <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 16 }}>
-
               <div>
                 <label style={{ fontSize: 11, fontWeight: 600, color: T.textMuted, textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: 6, display: "block" }}>Title</label>
                 <input
@@ -131,118 +152,188 @@ export function Sidebar({ snippets, activeId, isDark, user, setUser, onSelectSni
 
               <div>
                 <label style={{ fontSize: 11, fontWeight: 600, color: T.textMuted, textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: 6, display: "block" }}>Language</label>
-                <div style={{ position: "relative" }}>
-                  <select
-                    value={newLanguage}
-                    onChange={e => setNewLanguage(e.target.value)}
-                    style={{ ...inputStyle, cursor: "pointer", appearance: "none", WebkitAppearance: "none", background: isDark ? "#1e293b" : "#f1f5f9", color: T.text, paddingRight: 36 }}
-                  >
-                    {LANGUAGES.map(l => (
-                      <option key={l} value={l} style={{ background: isDark ? "#1e293b" : "#f1f5f9", color: isDark ? "#e2e8f0" : "#0f172a", padding: "8px 12px" }}>
-                        {l}
-                      </option>
-                    ))}
-                  </select>
-                  <div style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: T.textMuted }}>
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                      <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </div>
-                </div>
+                <select
+                  value={newLanguage}
+                  onChange={e => setNewLanguage(e.target.value)}
+                  style={{ ...inputStyle, appearance: "none" as const }}
+                >
+                  {LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
+                </select>
               </div>
 
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 600, color: T.textMuted, textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: 6, display: "block" }}>
-                  Code <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(optional)</span>
-                </label>
-                <textarea
-                  value={newCode}
-                  onChange={e => setNewCode(e.target.value)}
-                  placeholder="Paste your code here..."
-                  rows={5}
-                  style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }}
-                />
-              </div>
-
-              <div style={{ display: "flex", gap: 8, paddingTop: 4 }}>
-                <button
-                  onClick={() => setNewSnippetOpen(false)}
-                  style={{ flex: 1, padding: "9px 0", borderRadius: 9, background: "transparent", border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "rgba(15,23,42,0.12)"}`, color: T.textMuted, fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "'Inter',sans-serif", transition: "all 0.15s" }}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleCreate}
-                  disabled={!newTitle.trim() || creating}
-                  style={{ flex: 2, padding: "9px 0", borderRadius: 9, background: !newTitle.trim() ? "rgba(37,99,235,0.3)" : "linear-gradient(135deg,#2563eb,#4f46e5)", border: "none", color: "white", fontSize: 13, fontWeight: 600, cursor: !newTitle.trim() ? "not-allowed" : "pointer", fontFamily: "'Inter',sans-serif", opacity: creating ? 0.7 : 1, boxShadow: newTitle.trim() ? "0 0 20px rgba(37,99,235,0.4)" : "none", transition: "all 0.2s" }}
-                >
-                  {creating ? "Creating..." : "Create Snippet"}
-                </button>
-              </div>
+              <button
+                onClick={handleCreate}
+                disabled={creating || !newTitle.trim()}
+                style={{ padding: "11px", borderRadius: 10, background: creating || !newTitle.trim() ? (isDark ? "rgba(37,99,235,0.3)" : "rgba(37,99,235,0.2)") : "linear-gradient(135deg,#2563eb,#4f46e5)", border: "none", color: "white", fontSize: 14, fontWeight: 600, cursor: creating || !newTitle.trim() ? "not-allowed" : "pointer", fontFamily: "'Inter',sans-serif", transition: "all 0.15s", boxShadow: creating || !newTitle.trim() ? "none" : "0 0 20px rgba(37,99,235,0.35)" }}
+              >
+                {creating ? "Creating..." : "Create Snippet"}
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      <aside style={{ width: 260, height: "100vh", flexShrink: 0, display: "flex", flexDirection: "column", background: T.sidebarBg, borderRight: `1px solid ${T.border}`, overflow: "hidden" }}>
+      <aside style={{ width: 260, height: "100vh", display: "flex", flexDirection: "column", background: T.sidebarBg, borderRight: `1px solid ${T.border}` }}>
 
-        <div style={{ height: 56, padding: "0 16px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>
+        {/* Header */}
+        <div style={{ height: 52, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 14px", borderBottom: `1px solid ${T.border}` }}>
           <CodebaseLogo isDark={isDark} />
-          <button onClick={onCloseSidebar} style={{ background: "transparent", border: "none", cursor: "pointer", color: T.textMuted, padding: 4, borderRadius: 6, display: "flex" }}
+          <button
+            onClick={onCloseSidebar}
+            style={{ width: 28, height: 28, borderRadius: 7, background: "transparent", border: "none", cursor: "pointer", color: T.textMuted, display: "flex", alignItems: "center", justifyContent: "center", transition: "color 0.15s" }}
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = T.text; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = T.textMuted; }}>
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = T.textMuted; }}
+          >
             <X style={{ width: 15, height: 15 }} />
           </button>
         </div>
 
-        <div style={{ padding: "14px 14px 10px" }}>
+        {/* New Snippet button */}
+        <div style={{ padding: "12px 12px 8px" }}>
           <button
             onClick={() => setNewSnippetOpen(true)}
-            style={{ width: "100%", padding: "9px 0", background: "linear-gradient(135deg,#2563eb,#4f46e5)", border: "none", borderRadius: 10, cursor: "pointer", color: "white", fontWeight: 700, fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, boxShadow: "0 0 20px rgba(37,99,235,0.3)", fontFamily: "'Inter',sans-serif" }}>
-            <Plus style={{ width: 15, height: 15 }} /> New Snippet
+            style={{ width: "100%", padding: "9px 12px", borderRadius: 10, background: "linear-gradient(135deg,#2563eb,#4f46e5)", border: "none", color: "white", fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, fontFamily: "'Inter',sans-serif", boxShadow: "0 0 16px rgba(37,99,235,0.3)", transition: "box-shadow 0.15s" }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 24px rgba(37,99,235,0.5)"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 16px rgba(37,99,235,0.3)"; }}
+          >
+            <Plus style={{ width: 14, height: 14 }} />
+            New Snippet
           </button>
         </div>
 
-        <div style={{ padding: "4px 18px 8px" }}>
-          <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", fontWeight: 700, color: T.textMuted }}>My Snippets</span>
+        {/* Tags section */}
+        {allTags.length > 0 && (
+          <div style={{ padding: "4px 18px 8px" }}>
+            <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", fontWeight: 700, color: T.textMuted, marginBottom: 6 }}>Tags</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+              {allTags.map(tag => {
+                const isActive = activeTag === tag;
+                return (
+                  <button
+                    key={tag}
+                    onClick={() => onSelectTag(tag)}
+                    style={{
+                      fontSize: 11, padding: "3px 9px", borderRadius: 6, cursor: "pointer",
+                      background: isActive ? "rgba(59,130,246,0.15)" : T.inputBg,
+                      color: isActive ? "#60a5fa" : T.textMuted,
+                      fontFamily: "'Inter',sans-serif", fontWeight: isActive ? 600 : 400,
+                      border: `1px solid ${isActive ? "rgba(59,130,246,0.45)" : T.inputBorder}`,
+                      boxShadow: isActive ? "0 0 8px rgba(59,130,246,0.2)" : "none",
+                      transition: "all 0.15s",
+                    }}
+                    onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.color = T.text; }}
+                    onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.color = T.textMuted; }}
+                  >
+                    # {tag}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        <div style={{ padding: "4px 18px 8px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", fontWeight: 700, color: T.textMuted }}>
+            My Snippets {activeTag && <span style={{ color: "#60a5fa" }}>· #{activeTag}</span>}
+          </span>
+          {activeTag && (
+            <button
+              onClick={() => onSelectTag(activeTag)}
+              style={{ fontSize: 10, color: T.textMuted, background: "none", border: "none", cursor: "pointer", fontFamily: "'Inter',sans-serif", display: "flex", alignItems: "center", gap: 3 }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = T.text; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = T.textMuted; }}
+            >
+              <X style={{ width: 10, height: 10 }} /> clear
+            </button>
+          )}
         </div>
 
-        <div style={{ flex: 1, overflowY: "auto", padding: "0 10px" }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: "0 10px", overflowX: "visible" }}>
           {snippets.length === 0 && (
             <div style={{ padding: "20px 8px", textAlign: "center", color: T.textMuted, fontSize: 12 }}>
-              No snippets yet. Create your first one!
+              {activeTag ? `No snippets tagged #${activeTag}` : "No snippets yet. Create your first one!"}
             </div>
           )}
           {snippets.map(sn => {
             const isActive = sn._id === activeId;
             const isHovered = hoveredId === sn._id;
+            const isMenuOpen = menuOpenId === sn._id;
             const b = getBadge(sn.language, isDark);
             return (
               <div
                 key={sn._id}
                 style={{ position: "relative" }}
                 onMouseEnter={() => setHoveredId(sn._id)}
-                onMouseLeave={() => setHoveredId(null)}
+                onMouseLeave={() => { setHoveredId(null); }}
               >
                 <button
                   onClick={() => onSelectSnippet(sn._id)}
-                  style={{ width: "100%", textAlign: "left", padding: "10px 12px", paddingRight: 36, borderRadius: 10, marginBottom: 2, cursor: "pointer", position: "relative", background: isActive ? T.snippetActive : isHovered ? T.snippetHover : "transparent", border: `1px solid ${isActive ? T.snippetActiveBorder : "transparent"}`, transition: "all 0.15s", fontFamily: "'Inter',sans-serif" }}
+                  style={{ width: "100%", textAlign: "left", padding: "10px 12px", paddingRight: 40, borderRadius: 10, marginBottom: 2, cursor: "pointer", position: "relative", background: isActive ? T.snippetActive : isHovered ? T.snippetHover : "transparent", border: `1px solid ${isActive ? T.snippetActiveBorder : "transparent"}`, transition: "all 0.15s", fontFamily: "'Inter',sans-serif" }}
                 >
                   {isActive && <div style={{ position: "absolute", left: 0, top: "25%", bottom: "25%", width: 3, borderRadius: "0 3px 3px 0", background: "#3b82f6", boxShadow: "0 0 8px rgba(59,130,246,0.7)" }} />}
                   <div style={{ marginBottom: 6, fontSize: 13, fontWeight: isActive ? 600 : 400, color: isActive ? (isDark ? "#dbeafe" : "#1d4ed8") : T.text }}>{sn.title}</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                     <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 5, fontWeight: 600, background: b.bg, color: b.color, border: `1px solid ${b.border}` }}>{sn.language}</span>
                     <span style={{ fontSize: 10, display: "flex", alignItems: "center", gap: 3, color: T.textMuted }}><Clock style={{ width: 10, height: 10 }} />{timeAgo(sn.createdAt)}</span>
                   </div>
+                  {sn.tags && sn.tags.length > 0 && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
+                      {sn.tags.map(tag => (
+                        <span key={tag} style={{ fontSize: 9, padding: "1px 6px", borderRadius: 4, background: activeTag === tag ? "rgba(59,130,246,0.2)" : T.inputBg, color: activeTag === tag ? "#60a5fa" : T.textMuted, border: `1px solid ${activeTag === tag ? "rgba(59,130,246,0.3)" : T.inputBorder}`, fontWeight: 600 }}>
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </button>
 
-                {isHovered && (
+                {/* ⋯ three-dot menu button — always rendered, visible on hover/open */}
+                <div
+                  ref={isMenuOpen ? menuRef : null}
+                  style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", opacity: (isHovered || isMenuOpen) ? 1 : 0, pointerEvents: (isHovered || isMenuOpen) ? "auto" : "none", transition: "opacity 0.15s" }}
+                >
                   <button
-                    onClick={e => { e.stopPropagation(); onDeleteSnippet(sn._id); }}
-                    style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", width: 24, height: 24, borderRadius: 6, background: isDark ? "rgba(239,68,68,0.1)" : "rgba(220,38,38,0.08)", border: "1px solid rgba(239,68,68,0.2)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: isDark ? "#f87171" : "#dc2626" }}
+                    onClick={e => {
+                      e.stopPropagation();
+                      if (!isMenuOpen) {
+                        const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                        setMenuPos({ top: r.bottom + 4, right: window.innerWidth - r.right });
+                        setMenuOpenId(sn._id);
+                      } else {
+                        setMenuOpenId(null);
+                      }
+                    }}
+                    style={{ width: 26, height: 26, borderRadius: 6, background: isMenuOpen ? (isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)") : (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"), border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"}`, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: T.textMuted, transition: "all 0.15s" }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = T.text; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = T.textMuted; }}
                   >
-                    <Trash2 style={{ width: 12, height: 12 }} />
+                    <MoreHorizontal style={{ width: 13, height: 13 }} />
                   </button>
+                </div>
+
+                {/* Dropdown — rendered in place, positioned via fixed */}
+                {isMenuOpen && (
+                  <div ref={dropdownRef} style={{ position: "fixed", top: menuPos.top, right: menuPos.right, zIndex: 9999, width: 160, borderRadius: 10, background: isDark ? "#1a2236" : "#ffffff", border: `1px solid ${T.border}`, boxShadow: isDark ? "0 8px 32px rgba(0,0,0,0.5)" : "0 8px 24px rgba(0,0,0,0.12)", overflow: "hidden", padding: "4px" }}>
+                    <button
+                      onClick={e => { e.stopPropagation(); setMenuOpenId(null); onViewHistory(sn._id); onSelectSnippet(sn._id); }}
+                      style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 7, background: "transparent", border: "none", color: T.text, fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "'Inter',sans-serif", transition: "background 0.15s" }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = T.snippetHover; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                    >
+                      <History style={{ width: 13, height: 13, color: "#60a5fa", flexShrink: 0 }} />
+                      View History
+                    </button>
+                    <div style={{ height: 1, background: T.border, margin: "3px 4px" }} />
+                    <button
+                      onClick={e => { e.stopPropagation(); setMenuOpenId(null); onDeleteSnippet(sn._id); }}
+                      style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 7, background: "transparent", border: "none", color: isDark ? "#f87171" : "#dc2626", fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "'Inter',sans-serif", transition: "background 0.15s" }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = isDark ? "rgba(239,68,68,0.08)" : "rgba(220,38,38,0.06)"; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                    >
+                      <Trash2 style={{ width: 13, height: 13, flexShrink: 0 }} />
+                      Delete
+                    </button>
+                  </div>
                 )}
               </div>
             );

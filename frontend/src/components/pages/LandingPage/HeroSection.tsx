@@ -46,7 +46,7 @@ const HeroSection = () => {
           transition={{ duration: 0.8, delay: 1.0, ease: "easeOut" }}
           className="mt-16 text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed"
         >
-          An AI-powered workspace to save, organize, and improve your code snippets.
+          An AI-powered workspace to save, organize, preview, and export your code snippets.
           Built for developers who want to learn faster and build smarter.
         </motion.p>
 

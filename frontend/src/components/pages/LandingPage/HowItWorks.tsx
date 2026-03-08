@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 const steps = [
   { number: "01", title: "Paste or write your code", description: "Drop any snippet into your workspace. Supports all major languages." },
   { number: "02", title: "Let AI analyze it", description: "Get instant explanations, improvement suggestions, and best practice tips." },
-  { number: "03", title: "Save, tag, and reuse", description: "Organize your snippets with tags. Access them anywhere, anytime." },
+  { number: "03", title: "Save, export, and reuse", description: "Organize your snippets with tags. Copy to clipboard or export as a file and access them anywhere, anytime." },
 ];
 
 const HowItWorks = () => {

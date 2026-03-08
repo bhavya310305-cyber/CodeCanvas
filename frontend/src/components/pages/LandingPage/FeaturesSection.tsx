@@ -10,12 +10,12 @@ const features = [
   {
     icon: Tags,
     title: "Tag-Based Organization",
-    description: "Organize your snippets with tags. Find anything in seconds. No folders, no friction.",
+    description: "Organize with tags. Filter instantly. One snippet can belong to many categories at once.",
   },
   {
     icon: Eye,
     title: "Live Frontend Preview",
-    description: "Write HTML, CSS, or React and see the output instantly. Experiment without leaving the workspace.",
+    description: "Write HTML, CSS, or JavaScript and see the output instantly. Copy to clipboard or export as a file — all without leaving the workspace.",
   },
 ];
 

@@ -24,6 +24,10 @@ export function getBadge(lang: string, isDark: boolean) {
     html:       { bg: "rgba(249,115,22,0.18)",  color: "#fb923c", border: "rgba(249,115,22,0.35)" },
     css:        { bg: "rgba(99,102,241,0.18)",  color: "#a5b4fc", border: "rgba(99,102,241,0.35)" },
     python:     { bg: "rgba(34,197,94,0.18)",   color: "#86efac", border: "rgba(34,197,94,0.35)" },
+    java:       { bg: "rgba(239,68,68,0.18)",   color: "#fca5a5", border: "rgba(239,68,68,0.35)" },
+    cpp:        { bg: "rgba(168,85,247,0.18)",  color: "#d8b4fe", border: "rgba(168,85,247,0.35)" },
+    json:       { bg: "rgba(245,158,11,0.18)",  color: "#fcd34d", border: "rgba(245,158,11,0.35)" },
+    markdown:   { bg: "rgba(20,184,166,0.18)",  color: "#5eead4", border: "rgba(20,184,166,0.35)" },
   };
   const light: BadgeMap = {
     typescript: { bg: "rgba(59,130,246,0.12)",  color: "#1d4ed8", border: "rgba(59,130,246,0.3)" },
@@ -31,8 +35,12 @@ export function getBadge(lang: string, isDark: boolean) {
     html:       { bg: "rgba(194,65,12,0.12)",   color: "#9a3412", border: "rgba(194,65,12,0.3)" },
     css:        { bg: "rgba(67,56,202,0.12)",   color: "#3730a3", border: "rgba(67,56,202,0.3)" },
     python:     { bg: "rgba(21,128,61,0.12)",   color: "#166534", border: "rgba(21,128,61,0.3)" },
+    java:       { bg: "rgba(185,28,28,0.12)",   color: "#991b1b", border: "rgba(185,28,28,0.3)" },
+    cpp:        { bg: "rgba(126,34,206,0.12)",  color: "#6b21a8", border: "rgba(126,34,206,0.3)" },
+    json:       { bg: "rgba(180,83,9,0.12)",    color: "#92400e", border: "rgba(180,83,9,0.3)"  },
+    markdown:   { bg: "rgba(15,118,110,0.12)",  color: "#0f766e", border: "rgba(15,118,110,0.3)" },
   };
-  return (isDark ? dark : light)[lang] ?? dark.typescript;
+  return (isDark ? dark : light)[lang] ?? (isDark ? dark.typescript : light.typescript);
 }
 
 export function getInitials(name: string): string {

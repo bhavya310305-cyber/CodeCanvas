@@ -21,6 +21,10 @@ const snippetSchema = new mongoose.Schema({
         type: String,
         default: '',
     },
+    tags: {
+        type: [String],
+        default: [],
+    },
 }, { timestamps: true });
 
 const Snippet = mongoose.model('Snippet', snippetSchema);

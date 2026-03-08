@@ -53,8 +53,6 @@ export function AiPanel({ active, isDark, onClose, onOpenSidebar, T }: Props) {
     setChatMessages(prev => [...prev, { role: "user", content: msg }]);
     setChatInput("");
     setIsLoading(true);
-
-    // Add a loading message
     setChatMessages(prev => [...prev, { role: "ai", content: "..." }]);
 
     try {
@@ -64,14 +62,11 @@ export function AiPanel({ active, isDark, onClose, onOpenSidebar, T }: Props) {
         language: active?.language ?? null,
         title: active?.title ?? null,
       });
-
-      // Replace loading message with real response
       setChatMessages(prev => [
         ...prev.slice(0, -1),
         { role: "ai", content: res.data.reply }
       ]);
     } catch (err) {
-      // Replace loading message with error
       setChatMessages(prev => [
         ...prev.slice(0, -1),
         { role: "ai", content: "Sorry, something went wrong. Please try again." }
@@ -83,8 +78,10 @@ export function AiPanel({ active, isDark, onClose, onOpenSidebar, T }: Props) {
   }
 
   return (
-    <div style={{ width: 380, height: "100vh", flexShrink: 0, display: "flex", flexDirection: "column", background: T.aiPanelBg, borderLeft: `1px solid ${T.border}`, overflow: "hidden", fontFamily: "'Inter',sans-serif" }}>
+    // ── width: 100% so it fills whatever the resizable container gives it ──
+    <div style={{ width: "100%", height: "100vh", display: "flex", flexDirection: "column", background: T.aiPanelBg, borderLeft: `1px solid ${T.border}`, overflow: "hidden", fontFamily: "'Inter',sans-serif" }}>
 
+      {/* Header */}
       <div style={{ padding: "14px 16px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 30, height: 30, borderRadius: 9, background: "rgba(59,130,246,0.15)", border: "1px solid rgba(59,130,246,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -107,6 +104,7 @@ export function AiPanel({ active, isDark, onClose, onOpenSidebar, T }: Props) {
         >✕</button>
       </div>
 
+      {/* No snippet banner */}
       {!active && (
         <button
           onClick={onOpenSidebar}
@@ -122,6 +120,7 @@ export function AiPanel({ active, isDark, onClose, onOpenSidebar, T }: Props) {
         </button>
       )}
 
+      {/* Messages */}
       <div style={{ flex: 1, overflowY: "auto", padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
         {chatMessages.map((msg, i) => (
           <div key={i} style={{ padding: "12px 14px", borderRadius: 12, background: msg.role === "ai" ? T.aiMsgBg : "transparent", border: msg.role === "user" ? `1px solid ${T.border}` : "1px solid transparent", marginLeft: msg.role === "user" ? 16 : 0, fontSize: 13, lineHeight: 1.7, color: T.text }}>
@@ -140,87 +139,47 @@ export function AiPanel({ active, isDark, onClose, onOpenSidebar, T }: Props) {
               }
             </div>
             {msg.content === "..." && isLoading
-            ? <span style={{ opacity: 0.5 }}>AI is thinking...</span>
-            : <ReactMarkdown
-                components={{
-                  code({ children, className }) {
-                    const isBlock = className?.includes('language-');
-                    return isBlock ? (
-                      <pre style={{
-                        background: isDark ? "rgba(0,0,0,0.4)" : "rgba(0,0,0,0.06)",
-                        border: `1px solid ${T.border}`,
-                        borderRadius: 8,
-                        padding: "12px 14px",
-                        overflowX: "auto",
-                        fontSize: 12,
-                        lineHeight: 1.6,
-                        margin: "8px 0",
-                        fontFamily: "monospace"
-                      }}>
-                        <code style={{ color: isDark ? "#e2e8f0" : "#1e293b", fontFamily: "monospace" }}>
-                          {children}
-                        </code>
-                      </pre>
-                    ) : (
-                      <code style={{
-                        background: isDark ? "rgba(0,0,0,0.3)" : "rgba(0,0,0,0.08)",
-                        padding: "2px 6px",
-                        borderRadius: 4,
-                        fontSize: 12,
-                        fontFamily: "monospace",
-                        color: isDark ? "#93c5fd" : "#2563eb"
-                      }}>
-                        {children}
-                      </code>
-                    );
-                  },
-                  p({ children }) {
-                    return <p style={{ margin: "6px 0", lineHeight: 1.7 }}>{children}</p>;
-                  },
-                  ul({ children }) {
-                    return <ul style={{ paddingLeft: 20, margin: "6px 0", lineHeight: 1.7 }}>{children}</ul>;
-                  },
-                  ol({ children }) {
-                    return <ol style={{ paddingLeft: 20, margin: "6px 0", lineHeight: 1.7 }}>{children}</ol>;
-                  },
-                  li({ children }) {
-                    return <li style={{ marginBottom: 4 }}>{children}</li>;
-                  },
-                  strong({ children }) {
-                    return <strong style={{ color: T.text, fontWeight: 700 }}>{children}</strong>;
-                  },
-                  h1({ children }) {
-                    return <h1 style={{ fontSize: 15, fontWeight: 700, margin: "10px 0 6px", color: T.text }}>{children}</h1>;
-                  },
-                  h2({ children }) {
-                    return <h2 style={{ fontSize: 14, fontWeight: 700, margin: "10px 0 6px", color: T.text }}>{children}</h2>;
-                  },
-                  h3({ children }) {
-                    return <h3 style={{ fontSize: 13, fontWeight: 700, margin: "8px 0 4px", color: T.text }}>{children}</h3>;
-                  },
-                  table({ children }) {
-                    return (
-                      <div style={{ overflowX: "auto", margin: "8px 0" }}>
-                        <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 12 }}>{children}</table>
-                      </div>
-                    );
-                  },
-                  th({ children }) {
-                    return <th style={{ padding: "6px 10px", borderBottom: `1px solid ${T.border}`, textAlign: "left", fontWeight: 600, color: T.text }}>{children}</th>;
-                  },
-                  td({ children }) {
-                    return <td style={{ padding: "6px 10px", borderBottom: `1px solid ${T.border}`, color: T.textMuted }}>{children}</td>;
-                  },
-                }}
-              >
-                {msg.content}
-              </ReactMarkdown>
-          }
+              ? <span style={{ opacity: 0.5 }}>AI is thinking...</span>
+              : <ReactMarkdown
+                  components={{
+                    code({ children, className }) {
+                      const isBlock = className?.includes('language-');
+                      return isBlock ? (
+                        <pre style={{ background: isDark ? "rgba(0,0,0,0.4)" : "rgba(0,0,0,0.06)", border: `1px solid ${T.border}`, borderRadius: 8, padding: "12px 14px", overflowX: "auto", fontSize: 12, lineHeight: 1.6, margin: "8px 0", fontFamily: "monospace" }}>
+                          <code style={{ color: isDark ? "#e2e8f0" : "#1e293b", fontFamily: "monospace" }}>{children}</code>
+                        </pre>
+                      ) : (
+                        <code style={{ background: isDark ? "rgba(0,0,0,0.3)" : "rgba(0,0,0,0.08)", padding: "2px 6px", borderRadius: 4, fontSize: 12, fontFamily: "monospace", color: isDark ? "#93c5fd" : "#2563eb" }}>{children}</code>
+                      );
+                    },
+                    p({ children }) { return <p style={{ margin: "6px 0", lineHeight: 1.7 }}>{children}</p>; },
+                    ul({ children }) { return <ul style={{ paddingLeft: 20, margin: "6px 0", lineHeight: 1.7 }}>{children}</ul>; },
+                    ol({ children }) { return <ol style={{ paddingLeft: 20, margin: "6px 0", lineHeight: 1.7 }}>{children}</ol>; },
+                    li({ children }) { return <li style={{ marginBottom: 4 }}>{children}</li>; },
+                    strong({ children }) { return <strong style={{ color: T.text, fontWeight: 700 }}>{children}</strong>; },
+                    h1({ children }) { return <h1 style={{ fontSize: 15, fontWeight: 700, margin: "10px 0 6px", color: T.text }}>{children}</h1>; },
+                    h2({ children }) { return <h2 style={{ fontSize: 14, fontWeight: 700, margin: "10px 0 6px", color: T.text }}>{children}</h2>; },
+                    h3({ children }) { return <h3 style={{ fontSize: 13, fontWeight: 700, margin: "8px 0 4px", color: T.text }}>{children}</h3>; },
+                    table({ children }) {
+                      return (
+                        <div style={{ overflowX: "auto", margin: "8px 0" }}>
+                          <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 12 }}>{children}</table>
+                        </div>
+                      );
+                    },
+                    th({ children }) { return <th style={{ padding: "6px 10px", borderBottom: `1px solid ${T.border}`, textAlign: "left", fontWeight: 600, color: T.text }}>{children}</th>; },
+                    td({ children }) { return <td style={{ padding: "6px 10px", borderBottom: `1px solid ${T.border}`, color: T.textMuted }}>{children}</td>; },
+                  }}
+                >
+                  {msg.content}
+                </ReactMarkdown>
+            }
           </div>
         ))}
         <div ref={chatEndRef} />
       </div>
 
+      {/* Quick action buttons */}
       <div style={{ padding: "10px 14px 8px", borderTop: `1px solid ${T.border}`, display: "flex", gap: 8, flexWrap: "wrap", flexShrink: 0 }}>
         {active
           ? ["Explain Logic", "Find Bugs", "Optimize"].map(a => (
@@ -240,6 +199,7 @@ export function AiPanel({ active, isDark, onClose, onOpenSidebar, T }: Props) {
         }
       </div>
 
+      {/* Input */}
       <div style={{ padding: "8px 14px 14px", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "flex-end", gap: 8, padding: "10px 12px", borderRadius: 12, background: T.aiMsgBg, border: `1px solid ${T.border}` }}>
           <textarea

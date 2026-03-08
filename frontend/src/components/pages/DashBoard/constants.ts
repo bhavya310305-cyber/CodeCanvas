@@ -95,7 +95,7 @@ export const langColors: Record<string, string> = {
   python:     "bg-green-500/20 text-green-700 border-green-500/30 dark:text-green-400",
   java:       "bg-red-500/20 text-red-700 border-red-500/30 dark:text-red-400",
   cpp:        "bg-purple-500/20 text-purple-700 border-purple-500/30 dark:text-purple-400",
-  json:       "bg-gray-500/20 text-gray-700 border-gray-500/30 dark:text-gray-400",
+  json:       "bg-amber-500/20 text-amber-700 border-amber-500/30 dark:text-amber-400",
   markdown:   "bg-teal-500/20 text-teal-700 border-teal-500/30 dark:text-teal-400",
 };
 
@@ -107,6 +107,6 @@ export const langDotClass: Record<string, string> = {
   python:     "bg-green-400",
   java:       "bg-red-400",
   cpp:        "bg-purple-400",
-  json:       "bg-gray-400",
+  json:       "bg-amber-400",
   markdown:   "bg-teal-400",
 };

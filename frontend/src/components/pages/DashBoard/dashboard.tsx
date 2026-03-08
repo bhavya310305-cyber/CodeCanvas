@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { Menu, Search, Sun, Moon, Sparkles } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -23,6 +23,32 @@ export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isDark, setIsDark] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [activeTag, setActiveTag] = useState<string | null>(null);
+  // ── Version history ──
+  const [historySnippetId, setHistorySnippetId] = useState<string | null>(null);
+  // ── Resizable AI panel ──
+  const [aiWidth, setAiWidth] = useState(380);
+  const AI_MIN = 320;
+  const aiDragRef = useRef<{ startX: number; startWidth: number } | null>(null);
+
+  function handleAiDragStart(e: React.MouseEvent) {
+    e.preventDefault();
+    aiDragRef.current = { startX: e.clientX, startWidth: aiWidth };
+    const onMove = (ev: MouseEvent) => {
+      if (!aiDragRef.current) return;
+      const delta = aiDragRef.current.startX - ev.clientX;
+      const maxWidth = Math.floor(window.innerWidth * 0.5);
+      const newWidth = Math.min(maxWidth, Math.max(AI_MIN, aiDragRef.current.startWidth + delta));
+      setAiWidth(newWidth);
+    };
+    const onUp = () => {
+      aiDragRef.current = null;
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }
 
   const active = useMemo(
     () => snippets.find(s => s._id === activeId) ?? null,
@@ -30,11 +56,19 @@ export default function Dashboard() {
   );
   const T = useMemo(() => getThemeTokens(isDark), [isDark]);
 
+  const filteredSnippets = useMemo(() => {
+    if (!activeTag) return snippets;
+    return snippets.filter(s => s.tags?.includes(activeTag));
+  }, [snippets, activeTag]);
+
+  const allTags = useMemo(() => {
+    const set = new Set<string>();
+    snippets.forEach(s => s.tags?.forEach(t => set.add(t)));
+    return Array.from(set).sort();
+  }, [snippets]);
+
   useEffect(() => {
-    if (!user) {
-      setLoading(false);
-      return;
-    }
+    if (!user) { setLoading(false); return; }
     const fetchSnippets = async () => {
       try {
         const res = await api.get("/snippets");
@@ -63,16 +97,16 @@ export default function Dashboard() {
     e.stopPropagation();
     setOpenTabs(prev => {
       const next = prev.filter(t => t !== id);
-      if (activeId === id) {
-        setActiveId(next.length > 0 ? next[next.length - 1] : "");
-      }
+      if (activeId === id) setActiveId(next.length > 0 ? next[next.length - 1] : "");
       return next;
     });
+    // Close history if the closed tab was the history snippet
+    if (historySnippetId === id) setHistorySnippetId(null);
   }
 
   const handleCreateSnippet = useCallback(async (title: string, language: string, code: string) => {
     try {
-      const res = await api.post("/snippets", { title, language, code });
+      const res = await api.post("/snippets", { title, language, code, tags: [] });
       const newSnippet = res.data;
       setSnippets(prev => [newSnippet, ...prev]);
       setActiveId(newSnippet._id);
@@ -91,10 +125,11 @@ export default function Dashboard() {
         return next;
       });
       setOpenTabs(prev => prev.filter(t => t !== id));
+      if (historySnippetId === id) setHistorySnippetId(null);
     } catch (err) {
       console.error("Failed to delete snippet:", err);
     }
-  }, [activeId]);
+  }, [activeId, historySnippetId]);
 
   const handleUpdateCode = useCallback(async (id: string, code: string) => {
     try {
@@ -105,16 +140,47 @@ export default function Dashboard() {
     }
   }, []);
 
+  const handleUpdateTags = useCallback(async (id: string, tags: string[]) => {
+    try {
+      await api.put(`/snippets/${id}`, { tags });
+      setSnippets(prev => prev.map(s => s._id === id ? { ...s, tags } : s));
+    } catch (err) {
+      console.error("Failed to update tags:", err);
+    }
+  }, []);
+
+  // Restore a version — updates the snippet in local state too
+  const handleRestoreVersion = useCallback(async (snippetId: string, versionId: string) => {
+    try {
+      const res = await api.post(`/snippets/${snippetId}/restore/${versionId}`);
+      setSnippets(prev => prev.map(s => s._id === snippetId ? { ...s, code: res.data.code } : s));
+    } catch (err) {
+      console.error("Failed to restore version:", err);
+    }
+  }, []);
+
   async function handleLogout() {
-  try {
-    await api.post("/auth/logout");
-  } catch (err) {
-    console.error("Logout error:", err);
-  } finally {
-    setUser(null);
-    navigate("/login");
+    try {
+      await api.post("/auth/logout");
+    } catch (err) {
+      console.error("Logout error:", err);
+    } finally {
+      setUser(null);
+      navigate("/login");
+    }
   }
-}
+
+  // ── Open history: close AI panel, set history snippet ──
+  function handleViewHistory(id: string) {
+    setAiOpen(false);
+    setHistorySnippetId(prev => prev === id ? null : id);
+  }
+
+  // ── Open AI: close history panel ──
+  function handleToggleAi() {
+    setHistorySnippetId(null);
+    setAiOpen(v => !v);
+  }
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -155,27 +221,25 @@ export default function Dashboard() {
         T={T}
       />
 
-      {/* Sidebar — push animation using width transition */}
-      <div style={{
-        width: sidebarOpen ? 260 : 0,
-        minWidth: sidebarOpen ? 260 : 0,
-        overflow: "hidden",
-        transition: "width 0.3s cubic-bezier(0.4,0,0.2,1), min-width 0.3s cubic-bezier(0.4,0,0.2,1)",
-        flexShrink: 0,
-      }}>
+      {/* Sidebar */}
+      <div style={{ width: sidebarOpen ? 260 : 0, minWidth: sidebarOpen ? 260 : 0, overflow: "hidden", transition: "width 0.3s cubic-bezier(0.4,0,0.2,1), min-width 0.3s cubic-bezier(0.4,0,0.2,1)", flexShrink: 0 }}>
         <div style={{ width: 260, height: "100vh" }}>
           <Sidebar
-            snippets={snippets}
+            snippets={filteredSnippets}
             activeId={activeId}
             isDark={isDark}
             user={user}
             setUser={setUser}
+            allTags={allTags}
+            activeTag={activeTag}
+            onSelectTag={tag => setActiveTag(prev => prev === tag ? null : tag)}
             onSelectSnippet={handleSelectSnippet}
             onCloseSidebar={() => setSidebarOpen(false)}
             onToggleTheme={() => setIsDark(v => !v)}
             onLogout={handleLogout}
             onCreateSnippet={handleCreateSnippet}
             onDeleteSnippet={handleDeleteSnippet}
+            onViewHistory={handleViewHistory}
             T={T}
           />
         </div>
@@ -218,7 +282,7 @@ export default function Dashboard() {
             </button>
 
             <button
-              onClick={() => setAiOpen(v => !v)}
+              onClick={handleToggleAi}
               style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, fontFamily: "'Inter',sans-serif", background: aiOpen ? "linear-gradient(135deg,#2563eb,#4f46e5)" : isDark ? "rgba(59,130,246,0.08)" : "rgba(59,130,246,0.1)", border: `1px solid ${aiOpen ? "transparent" : "rgba(59,130,246,0.3)"}`, color: aiOpen ? "white" : "#60a5fa", cursor: "pointer", boxShadow: aiOpen ? "0 0 20px rgba(37,99,235,0.3)" : "none", transition: "all 0.2s", flexShrink: 0 }}
             >
               <Sparkles style={{ width: 14, height: 14 }} />AI Insight
@@ -239,23 +303,30 @@ export default function Dashboard() {
             activeId={activeId}
             snippets={snippets}
             isDark={isDark}
+            historySnippetId={historySnippetId}
             onSetActiveId={setActiveId}
             onCloseTab={handleCloseTab}
             onUpdateCode={handleUpdateCode}
+            onUpdateTags={handleUpdateTags}
+            onRestoreVersion={handleRestoreVersion}
+            onCloseHistory={() => setHistorySnippetId(null)}
             T={T}
           />
         )}
       </main>
 
-      {/* AI Panel — push animation using width transition */}
-      <div style={{
-        width: aiOpen ? 380 : 0,
-        minWidth: aiOpen ? 380 : 0,
-        overflow: "hidden",
-        transition: "width 0.3s cubic-bezier(0.4,0,0.2,1), min-width 0.3s cubic-bezier(0.4,0,0.2,1)",
-        flexShrink: 0,
-      }}>
-        <div style={{ width: 380, height: "100vh" }}>
+      {/* AI Panel — resizable */}
+      <div style={{ width: aiOpen ? aiWidth : 0, minWidth: aiOpen ? aiWidth : 0, overflow: "hidden", transition: aiDragRef.current ? "none" : "width 0.3s cubic-bezier(0.4,0,0.2,1), min-width 0.3s cubic-bezier(0.4,0,0.2,1)", flexShrink: 0, position: "relative" }}>
+        {/* Drag handle */}
+        {aiOpen && (
+          <div
+            onMouseDown={handleAiDragStart}
+            style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 5, cursor: "col-resize", zIndex: 20, background: "transparent", transition: "background 0.15s" }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = isDark ? "rgba(59,130,246,0.35)" : "rgba(59,130,246,0.25)"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+          />
+        )}
+        <div style={{ width: aiWidth, height: "100vh" }}>
           <AiPanel
             active={active}
             isDark={isDark}

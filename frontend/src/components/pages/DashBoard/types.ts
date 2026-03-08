@@ -1,9 +1,10 @@
 export interface Snippet {
-  _id: string;       
+  _id: string;
   title: string;
   language: string;
   code: string;
-  createdAt: string;  
+  tags: string[];
+  createdAt: string;
 }
 
 export interface ChatMessage {
