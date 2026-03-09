@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import Editor from "@monaco-editor/react";
 import type { Monaco } from "@monaco-editor/react";
 import { ArrowLeft, X, RotateCcw } from "lucide-react";
@@ -170,6 +170,28 @@ export function EditorPanel({ active, openTabs, activeId, snippets, isDark, hist
   const [restoring, setRestoring] = useState(false);
 
   const historyOpen = historySnippetId === active?._id;
+  const [historyWidth, setHistoryWidth] = useState(300);
+  const HISTORY_MIN = 260;
+  const historyDragRef = useRef<{ startX: number; startWidth: number } | null>(null);
+
+  function handleHistoryDragStart(e: React.MouseEvent) {
+    e.preventDefault();
+    historyDragRef.current = { startX: e.clientX, startWidth: historyWidth };
+    const onMove = (ev: MouseEvent) => {
+      if (!historyDragRef.current) return;
+      const delta = historyDragRef.current.startX - ev.clientX;
+      const maxWidth = Math.floor(window.innerWidth * 0.5);
+      const newWidth = Math.min(maxWidth, Math.max(HISTORY_MIN, historyDragRef.current.startWidth + delta));
+      setHistoryWidth(newWidth);
+    };
+    const onUp = () => {
+      historyDragRef.current = null;
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }
 
   const canPreview = active?.language === "html";
   const canOutput = active ? outputLanguages.includes(active.language) : false;
@@ -313,10 +335,30 @@ export function EditorPanel({ active, openTabs, activeId, snippets, isDark, hist
     return (
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <header style={{ height: 48, flexShrink: 0, background: T.headerBg, borderBottom: `1px solid ${T.border}` }} />
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 10 }}>
-          <div style={{ fontSize: 28 }}>{"</>"}</div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>No snippet open</div>
-          <div style={{ fontSize: 12, color: T.textMuted }}>Select a snippet from the sidebar to start editing</div>
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden" }}>
+
+          {/* Dot grid background */}
+          <div style={{ position: "absolute", inset: 0, backgroundImage: isDark ? "radial-gradient(circle, rgba(255,255,255,0.045) 1px, transparent 1px)" : "radial-gradient(circle, rgba(0,0,0,0.07) 1px, transparent 1px)", backgroundSize: "28px 28px", pointerEvents: "none" }} />
+
+          {/* Glow blob */}
+          <div style={{ position: "absolute", width: 320, height: 320, borderRadius: "50%", background: isDark ? "radial-gradient(circle, rgba(59,130,246,0.07) 0%, transparent 70%)" : "radial-gradient(circle, rgba(59,130,246,0.06) 0%, transparent 70%)", pointerEvents: "none" }} />
+
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20, zIndex: 1 }}>
+
+            {/* Icon */}
+            <div style={{ width: 72, height: 72, borderRadius: 20, background: isDark ? "rgba(37,99,235,0.12)" : "rgba(37,99,235,0.08)", border: `1.5px solid ${isDark ? "rgba(59,130,246,0.25)" : "rgba(59,130,246,0.2)"}`, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 32px rgba(59,130,246,0.12)" }}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={isDark ? "#60a5fa" : "#3b82f6"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="16 18 22 12 16 6" />
+                <polyline points="8 6 2 12 8 18" />
+              </svg>
+            </div>
+
+            {/* Text */}
+            <div style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: T.text, fontFamily: "'Inter',sans-serif" }}>No snippet open</div>
+              <div style={{ fontSize: 13, color: T.textMuted, fontFamily: "'Inter',sans-serif", lineHeight: 1.6 }}>Select a snippet from the sidebar<br/>or create a new one to start editing</div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -683,7 +725,14 @@ export function EditorPanel({ active, openTabs, activeId, snippets, isDark, hist
 
         {/* ── Version History Panel ── */}
         {historyOpen && active && (
-          <div style={{ display: "flex", flexDirection: "column", width: 300, minWidth: 300, borderRadius: 14, overflow: "hidden", border: `1px solid ${T.border}`, background: T.editorPanelBg, boxShadow: isDark ? "0 4px 32px rgba(0,0,0,0.3)" : "0 4px 24px rgba(0,0,0,0.08)", flexShrink: 0 }}>
+          <div style={{ display: "flex", flexDirection: "column", width: historyWidth, minWidth: historyWidth, borderRadius: 14, overflow: "hidden", border: `1px solid ${T.border}`, background: T.editorPanelBg, boxShadow: isDark ? "0 4px 32px rgba(0,0,0,0.3)" : "0 4px 24px rgba(0,0,0,0.08)", flexShrink: 0, position: "relative" }}>
+            {/* Drag handle */}
+            <div
+              onMouseDown={handleHistoryDragStart}
+              style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 5, cursor: "col-resize", zIndex: 20, background: "transparent", transition: "background 0.15s" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = isDark ? "rgba(59,130,246,0.35)" : "rgba(59,130,246,0.25)"; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+            />
 
             {/* Header */}
             <div style={{ height: 44, padding: "0 14px", display: "flex", alignItems: "center", justifyContent: "space-between", background: T.editorHeaderBg, borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>

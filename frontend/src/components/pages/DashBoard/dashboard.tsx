@@ -20,12 +20,13 @@ export default function Dashboard() {
   const [search, setSearch] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDark, setIsDark] = useState(true);
   const [loading, setLoading] = useState(true);
   const [activeTag, setActiveTag] = useState<string | null>(null);
   // ── Version history ──
   const [historySnippetId, setHistorySnippetId] = useState<string | null>(null);
+  const [triggerNewSnippet, setTriggerNewSnippet] = useState(false);
   // ── Resizable AI panel ──
   const [aiWidth, setAiWidth] = useState(380);
   const AI_MIN = 320;
@@ -86,6 +87,19 @@ export default function Dashboard() {
     if (!user) navigate("/login");
   }, [user, navigate]);
 
+  // Sidebar: closed for first-time users, open for returning users (per account)
+  useEffect(() => {
+    if (!user) return;
+    const key = `cc_visited_${user.id}`;
+    const hasVisited = localStorage.getItem(key);
+    if (hasVisited) {
+      setSidebarOpen(true);
+    } else {
+      localStorage.setItem(key, 'true');
+      setSidebarOpen(false);
+    }
+  }, [user?.id]);
+
   function handleSelectSnippet(id: string) {
     setActiveId(id);
     setOpenTabs(prev => prev.includes(id) ? prev : [...prev, id]);
@@ -115,6 +129,34 @@ export default function Dashboard() {
       console.error("Failed to create snippet:", err);
     }
   }, []);
+
+  const handleRenameSnippet = useCallback(async (id: string, newTitle: string) => {
+    try {
+      const res = await api.put(`/snippets/${id}`, { title: newTitle });
+      setSnippets(prev => prev.map(s => s._id === id ? { ...s, title: res.data.title } : s));
+    } catch (err) {
+      console.error("Failed to rename snippet:", err);
+    }
+  }, []);
+
+  const handleDuplicateSnippet = useCallback(async (id: string) => {
+    try {
+      const original = snippets.find(s => s._id === id);
+      if (!original) return;
+      const res = await api.post("/snippets", {
+        title: `Copy of ${original.title}`,
+        language: original.language,
+        code: original.code,
+        tags: original.tags || [],
+      });
+      const newSnippet = res.data;
+      setSnippets(prev => [newSnippet, ...prev]);
+      setActiveId(newSnippet._id);
+      setOpenTabs(prev => [newSnippet._id, ...prev]);
+    } catch (err) {
+      console.error("Failed to duplicate snippet:", err);
+    }
+  }, [snippets]);
 
   const handleDeleteSnippet = useCallback(async (id: string) => {
     try {
@@ -240,6 +282,10 @@ export default function Dashboard() {
             onCreateSnippet={handleCreateSnippet}
             onDeleteSnippet={handleDeleteSnippet}
             onViewHistory={handleViewHistory}
+            onRenameSnippet={handleRenameSnippet}
+            onDuplicateSnippet={handleDuplicateSnippet}
+            triggerNewSnippet={triggerNewSnippet}
+            onTriggerNewSnippetHandled={() => setTriggerNewSnippet(false)}
             T={T}
           />
         </div>
@@ -291,10 +337,33 @@ export default function Dashboard() {
         </header>
 
         {snippets.length === 0 ? (
-          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12, color: T.textMuted, fontFamily: "'Inter',sans-serif" }}>
-            <div style={{ fontSize: 32 }}>📝</div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: T.text }}>No snippets yet</div>
-            <div style={{ fontSize: 12 }}>Click "New Snippet" to create your first one</div>
+          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden" }}>
+
+            {/* Dot grid */}
+            <div style={{ position: "absolute", inset: 0, backgroundImage: isDark ? "radial-gradient(circle, rgba(255,255,255,0.045) 1px, transparent 1px)" : "radial-gradient(circle, rgba(0,0,0,0.07) 1px, transparent 1px)", backgroundSize: "28px 28px", pointerEvents: "none" }} />
+            <div style={{ position: "absolute", width: 320, height: 320, borderRadius: "50%", background: isDark ? "radial-gradient(circle, rgba(59,130,246,0.07) 0%, transparent 70%)" : "radial-gradient(circle, rgba(59,130,246,0.06) 0%, transparent 70%)", pointerEvents: "none" }} />
+
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20, zIndex: 1 }}>
+              <div style={{ width: 72, height: 72, borderRadius: 20, background: isDark ? "rgba(37,99,235,0.12)" : "rgba(37,99,235,0.08)", border: `1.5px solid ${isDark ? "rgba(59,130,246,0.25)" : "rgba(59,130,246,0.2)"}`, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 32px rgba(59,130,246,0.12)" }}>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={isDark ? "#60a5fa" : "#3b82f6"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="16 18 22 12 16 6" />
+                  <polyline points="8 6 2 12 8 18" />
+                </svg>
+              </div>
+              <div style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: T.text, fontFamily: "'Inter',sans-serif" }}>No snippets yet</div>
+                <div style={{ fontSize: 13, color: T.textMuted, fontFamily: "'Inter',sans-serif", lineHeight: 1.6 }}>Create your first snippet to get started</div>
+              </div>
+              <button
+                onClick={() => { setSidebarOpen(true); setTriggerNewSnippet(true); }}
+                style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 22px", borderRadius: 10, background: "linear-gradient(135deg,#2563eb,#4f46e5)", border: "none", color: "white", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'Inter',sans-serif", boxShadow: "0 0 20px rgba(37,99,235,0.35)", transition: "box-shadow 0.15s" }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 32px rgba(37,99,235,0.55)"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 20px rgba(37,99,235,0.35)"; }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                New Snippet
+              </button>
+            </div>
           </div>
         ) : (
           <EditorPanel
@@ -326,7 +395,7 @@ export default function Dashboard() {
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
           />
         )}
-        <div style={{ width: aiWidth, height: "100vh" }}>
+        <div style={{ width: "100%", height: "100vh" }}>
           <AiPanel
             active={active}
             isDark={isDark}

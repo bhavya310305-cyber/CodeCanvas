@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Plus, X, Clock, Settings, LogOut, ChevronUp, Sun, Moon, Trash2, History, MoreHorizontal } from "lucide-react";
+import { Plus, X, Clock, Settings, LogOut, ChevronUp, Sun, Moon, Trash2, History, MoreHorizontal, Pencil, Copy } from "lucide-react";
 import { Snippet, ThemeTokens } from "../types";
 import { getBadge, getInitials, timeAgo } from "../utils";
 import { CodebaseLogo } from "./CodebaseLogo";
@@ -27,12 +27,16 @@ interface Props {
   onCreateSnippet: (title: string, language: string, code: string) => void;
   onDeleteSnippet: (id: string) => void;
   onViewHistory: (id: string) => void;
+  onRenameSnippet: (id: string, newTitle: string) => void;
+  onDuplicateSnippet: (id: string) => void;
+  triggerNewSnippet?: boolean;
+  onTriggerNewSnippetHandled?: () => void;
   T: ThemeTokens;
 }
 
 const LANGUAGES = ["javascript", "typescript", "html", "css", "python", "java", "cpp", "json", "markdown"];
 
-export function Sidebar({ snippets, activeId, isDark, user, setUser, allTags, activeTag, onSelectTag, onSelectSnippet, onCloseSidebar, onToggleTheme, onLogout, onCreateSnippet, onDeleteSnippet, onViewHistory, T }: Props) {
+export function Sidebar({ snippets, activeId, isDark, user, setUser, allTags, activeTag, onSelectTag, onSelectSnippet, onCloseSidebar, onToggleTheme, onLogout, onCreateSnippet, onDeleteSnippet, onViewHistory, onRenameSnippet, onDuplicateSnippet, triggerNewSnippet, onTriggerNewSnippetHandled, T }: Props) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [newSnippetOpen, setNewSnippetOpen] = useState(false);
@@ -43,6 +47,12 @@ export function Sidebar({ snippets, activeId, isDark, user, setUser, allTags, ac
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
+  const [langDropdownOpen, setLangDropdownOpen] = useState(false);
+  const langDropdownRef = useRef<HTMLDivElement>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const renameInputRef = useRef<HTMLInputElement>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const profileRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -75,6 +85,39 @@ export function Sidebar({ snippets, activeId, isDark, user, setUser, allTags, ac
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [menuOpenId]);
+
+  useEffect(() => {
+    if (!langDropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (langDropdownRef.current && !langDropdownRef.current.contains(e.target as Node)) {
+        setLangDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [langDropdownOpen]);
+
+  useEffect(() => {
+    if (triggerNewSnippet) {
+      setNewSnippetOpen(true);
+      onTriggerNewSnippetHandled?.();
+    }
+  }, [triggerNewSnippet]);
+
+  useEffect(() => {
+    if (renamingId && renameInputRef.current) {
+      renameInputRef.current.focus();
+      renameInputRef.current.select();
+    }
+  }, [renamingId]);
+
+  function handleRenameSubmit(id: string) {
+    const trimmed = renameValue.trim();
+    if (trimmed && trimmed !== snippets.find(s => s._id === id)?.title) {
+      onRenameSnippet(id, trimmed);
+    }
+    setRenamingId(null);
+  }
 
   async function handleCreate() {
     if (!newTitle.trim()) return;
@@ -138,6 +181,8 @@ export function Sidebar({ snippets, activeId, isDark, user, setUser, allTags, ac
             </div>
 
             <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 16 }}>
+
+              {/* Title */}
               <div>
                 <label style={{ fontSize: 11, fontWeight: 600, color: T.textMuted, textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: 6, display: "block" }}>Title</label>
                 <input
@@ -150,28 +195,122 @@ export function Sidebar({ snippets, activeId, isDark, user, setUser, allTags, ac
                 />
               </div>
 
+              {/* Language — custom dropdown */}
               <div>
                 <label style={{ fontSize: 11, fontWeight: 600, color: T.textMuted, textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: 6, display: "block" }}>Language</label>
-                <select
-                  value={newLanguage}
-                  onChange={e => setNewLanguage(e.target.value)}
-                  style={{ ...inputStyle, appearance: "none" as const }}
-                >
-                  {LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
-                </select>
+                <div ref={langDropdownRef} style={{ position: "relative" }}>
+                  <button
+                    onClick={() => setLangDropdownOpen(v => !v)}
+                    style={{ ...inputStyle, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", textAlign: "left" as const }}
+                  >
+                    <span>{newLanguage}</span>
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ transform: langDropdownOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s", flexShrink: 0 }}>
+                      <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                  {langDropdownOpen && (
+                    <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 300, borderRadius: 10, background: isDark ? "#1a2236" : "#ffffff", border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "rgba(15,23,42,0.12)"}`, boxShadow: isDark ? "0 8px 32px rgba(0,0,0,0.5)" : "0 8px 24px rgba(0,0,0,0.12)", maxHeight: 220, overflowY: "auto", padding: "4px" }}>
+                      {LANGUAGES.map(l => (
+                        <div
+                          key={l}
+                          onClick={() => { setNewLanguage(l); setLangDropdownOpen(false); }}
+                          style={{ padding: "8px 12px", borderRadius: 7, cursor: "pointer", fontSize: 13, color: l === newLanguage ? "#60a5fa" : T.text, background: l === newLanguage ? (isDark ? "rgba(59,130,246,0.12)" : "rgba(59,130,246,0.08)") : "transparent", fontWeight: l === newLanguage ? 600 : 400, fontFamily: "'Inter',sans-serif", transition: "background 0.15s" }}
+                          onMouseEnter={e => { if (l !== newLanguage) (e.currentTarget as HTMLElement).style.background = T.snippetHover; }}
+                          onMouseLeave={e => { if (l !== newLanguage) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                        >
+                          {l}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <button
-                onClick={handleCreate}
-                disabled={creating || !newTitle.trim()}
-                style={{ padding: "11px", borderRadius: 10, background: creating || !newTitle.trim() ? (isDark ? "rgba(37,99,235,0.3)" : "rgba(37,99,235,0.2)") : "linear-gradient(135deg,#2563eb,#4f46e5)", border: "none", color: "white", fontSize: 14, fontWeight: 600, cursor: creating || !newTitle.trim() ? "not-allowed" : "pointer", fontFamily: "'Inter',sans-serif", transition: "all 0.15s", boxShadow: creating || !newTitle.trim() ? "none" : "0 0 20px rgba(37,99,235,0.35)" }}
-              >
-                {creating ? "Creating..." : "Create Snippet"}
-              </button>
+              {/* Code (optional) */}
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 600, color: T.textMuted, textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: 6, display: "block" }}>
+                  Code <span style={{ fontWeight: 400, textTransform: "none", opacity: 0.6 }}>(optional)</span>
+                </label>
+                <textarea
+                  value={newCode}
+                  onChange={e => setNewCode(e.target.value)}
+                  placeholder="Paste your code here..."
+                  rows={5}
+                  style={{ ...inputStyle, resize: "vertical" as const, minHeight: 100, lineHeight: 1.6, fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}
+                />
+              </div>
+
+              {/* Buttons */}
+              <div style={{ display: "flex", gap: 10 }}>
+                <button
+                  onClick={() => setNewSnippetOpen(false)}
+                  style={{ flex: 1, padding: "11px", borderRadius: 10, background: "transparent", border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "rgba(15,23,42,0.12)"}`, color: T.textMuted, fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "'Inter',sans-serif", transition: "all 0.15s" }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = T.text; (e.currentTarget as HTMLElement).style.borderColor = isDark ? "rgba(255,255,255,0.2)" : "rgba(15,23,42,0.25)"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = T.textMuted; (e.currentTarget as HTMLElement).style.borderColor = isDark ? "rgba(255,255,255,0.1)" : "rgba(15,23,42,0.12)"; }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreate}
+                  disabled={creating || !newTitle.trim()}
+                  style={{ flex: 2, padding: "11px", borderRadius: 10, background: creating || !newTitle.trim() ? (isDark ? "rgba(37,99,235,0.3)" : "rgba(37,99,235,0.2)") : "linear-gradient(135deg,#2563eb,#4f46e5)", border: "none", color: "white", fontSize: 14, fontWeight: 600, cursor: creating || !newTitle.trim() ? "not-allowed" : "pointer", fontFamily: "'Inter',sans-serif", transition: "all 0.15s", boxShadow: creating || !newTitle.trim() ? "none" : "0 0 20px rgba(37,99,235,0.35)" }}
+                >
+                  {creating ? "Creating..." : "Create Snippet"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* ── Delete Confirmation Modal ── */}
+      {confirmDeleteId && (() => {
+        const sn = snippets.find(s => s._id === confirmDeleteId);
+        return (
+          <div
+            style={{ position: "fixed", inset: 0, zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.6)", backdropFilter: "blur(6px)" }}
+            onClick={() => setConfirmDeleteId(null)}
+          >
+            <div
+              onClick={e => e.stopPropagation()}
+              style={{ width: "100%", maxWidth: 380, borderRadius: 16, background: isDark ? "linear-gradient(145deg,#0f172a,#111827)" : "#f8fafc", border: `1px solid ${isDark ? "rgba(239,68,68,0.2)" : "rgba(220,38,38,0.15)"}`, boxShadow: isDark ? "0 24px 80px rgba(0,0,0,0.7)" : "0 24px 64px rgba(0,0,0,0.15)", overflow: "hidden", fontFamily: "'Inter',sans-serif" }}
+            >
+              {/* Header */}
+              <div style={{ padding: "18px 20px", borderBottom: `1px solid ${isDark ? "rgba(239,68,68,0.1)" : "rgba(220,38,38,0.08)"}`, display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 9, background: isDark ? "rgba(239,68,68,0.12)" : "rgba(220,38,38,0.08)", border: `1px solid ${isDark ? "rgba(239,68,68,0.25)" : "rgba(220,38,38,0.2)"}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <Trash2 style={{ width: 14, height: 14, color: isDark ? "#f87171" : "#dc2626" }} />
+                </div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: T.text }}>Delete Snippet</div>
+              </div>
+
+              {/* Body */}
+              <div style={{ padding: "18px 20px 20px", display: "flex", flexDirection: "column", gap: 20 }}>
+                <div style={{ fontSize: 13, color: T.textMuted, lineHeight: 1.6 }}>
+                  Are you sure you want to delete <span style={{ fontWeight: 600, color: T.text }}>"{sn?.title}"</span>? This action cannot be undone.
+                </div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button
+                    onClick={() => setConfirmDeleteId(null)}
+                    style={{ flex: 1, padding: "10px", borderRadius: 10, background: "transparent", border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "rgba(15,23,42,0.12)"}`, color: T.textMuted, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'Inter',sans-serif", transition: "all 0.15s" }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = T.text; (e.currentTarget as HTMLElement).style.borderColor = isDark ? "rgba(255,255,255,0.2)" : "rgba(15,23,42,0.25)"; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = T.textMuted; (e.currentTarget as HTMLElement).style.borderColor = isDark ? "rgba(255,255,255,0.1)" : "rgba(15,23,42,0.12)"; }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => { onDeleteSnippet(confirmDeleteId); setConfirmDeleteId(null); }}
+                    style={{ flex: 1, padding: "10px", borderRadius: 10, background: isDark ? "rgba(239,68,68,0.15)" : "rgba(220,38,38,0.08)", border: `1px solid ${isDark ? "rgba(239,68,68,0.3)" : "rgba(220,38,38,0.2)"}`, color: isDark ? "#f87171" : "#dc2626", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'Inter',sans-serif", transition: "all 0.15s" }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = isDark ? "rgba(239,68,68,0.25)" : "rgba(220,38,38,0.15)"; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = isDark ? "rgba(239,68,68,0.15)" : "rgba(220,38,38,0.08)"; }}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       <aside style={{ width: 260, height: "100vh", display: "flex", flexDirection: "column", background: T.sidebarBg, borderRight: `1px solid ${T.border}` }}>
 
@@ -271,7 +410,22 @@ export function Sidebar({ snippets, activeId, isDark, user, setUser, allTags, ac
                   style={{ width: "100%", textAlign: "left", padding: "10px 12px", paddingRight: 40, borderRadius: 10, marginBottom: 2, cursor: "pointer", position: "relative", background: isActive ? T.snippetActive : isHovered ? T.snippetHover : "transparent", border: `1px solid ${isActive ? T.snippetActiveBorder : "transparent"}`, transition: "all 0.15s", fontFamily: "'Inter',sans-serif" }}
                 >
                   {isActive && <div style={{ position: "absolute", left: 0, top: "25%", bottom: "25%", width: 3, borderRadius: "0 3px 3px 0", background: "#3b82f6", boxShadow: "0 0 8px rgba(59,130,246,0.7)" }} />}
-                  <div style={{ marginBottom: 6, fontSize: 13, fontWeight: isActive ? 600 : 400, color: isActive ? (isDark ? "#dbeafe" : "#1d4ed8") : T.text }}>{sn.title}</div>
+                  {renamingId === sn._id ? (
+                    <input
+                      ref={renameInputRef}
+                      value={renameValue}
+                      onChange={e => setRenameValue(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === "Enter") { e.preventDefault(); handleRenameSubmit(sn._id); }
+                        if (e.key === "Escape") { setRenamingId(null); }
+                      }}
+                      onBlur={() => handleRenameSubmit(sn._id)}
+                      onClick={e => e.stopPropagation()}
+                      style={{ width: "100%", marginBottom: 6, fontSize: 13, fontWeight: 600, color: T.text, background: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)", border: `1px solid rgba(59,130,246,0.5)`, borderRadius: 6, padding: "2px 6px", outline: "none", fontFamily: "'Inter',sans-serif", boxShadow: "0 0 0 2px rgba(59,130,246,0.15)" }}
+                    />
+                  ) : (
+                    <div style={{ marginBottom: 6, fontSize: 13, fontWeight: isActive ? 600 : 400, color: isActive ? (isDark ? "#dbeafe" : "#1d4ed8") : T.text }}>{sn.title}</div>
+                  )}
                   <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                     <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 5, fontWeight: 600, background: b.bg, color: b.color, border: `1px solid ${b.border}` }}>{sn.language}</span>
                     <span style={{ fontSize: 10, display: "flex", alignItems: "center", gap: 3, color: T.textMuted }}><Clock style={{ width: 10, height: 10 }} />{timeAgo(sn.createdAt)}</span>
@@ -315,6 +469,25 @@ export function Sidebar({ snippets, activeId, isDark, user, setUser, allTags, ac
                 {isMenuOpen && (
                   <div ref={dropdownRef} style={{ position: "fixed", top: menuPos.top, right: menuPos.right, zIndex: 9999, width: 160, borderRadius: 10, background: isDark ? "#1a2236" : "#ffffff", border: `1px solid ${T.border}`, boxShadow: isDark ? "0 8px 32px rgba(0,0,0,0.5)" : "0 8px 24px rgba(0,0,0,0.12)", overflow: "hidden", padding: "4px" }}>
                     <button
+                      onClick={e => { e.stopPropagation(); setMenuOpenId(null); setRenameValue(sn.title); setRenamingId(sn._id); onSelectSnippet(sn._id); }}
+                      style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 7, background: "transparent", border: "none", color: T.text, fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "'Inter',sans-serif", transition: "background 0.15s" }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = T.snippetHover; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                    >
+                      <Pencil style={{ width: 13, height: 13, color: "#a78bfa", flexShrink: 0 }} />
+                      Rename
+                    </button>
+                    <button
+                      onClick={e => { e.stopPropagation(); setMenuOpenId(null); onDuplicateSnippet(sn._id); }}
+                      style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 7, background: "transparent", border: "none", color: T.text, fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "'Inter',sans-serif", transition: "background 0.15s" }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = T.snippetHover; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                    >
+                      <Copy style={{ width: 13, height: 13, color: "#34d399", flexShrink: 0 }} />
+                      Duplicate
+                    </button>
+                    <div style={{ height: 1, background: T.border, margin: "3px 4px" }} />
+                    <button
                       onClick={e => { e.stopPropagation(); setMenuOpenId(null); onViewHistory(sn._id); onSelectSnippet(sn._id); }}
                       style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 7, background: "transparent", border: "none", color: T.text, fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "'Inter',sans-serif", transition: "background 0.15s" }}
                       onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = T.snippetHover; }}
@@ -325,7 +498,7 @@ export function Sidebar({ snippets, activeId, isDark, user, setUser, allTags, ac
                     </button>
                     <div style={{ height: 1, background: T.border, margin: "3px 4px" }} />
                     <button
-                      onClick={e => { e.stopPropagation(); setMenuOpenId(null); onDeleteSnippet(sn._id); }}
+                      onClick={e => { e.stopPropagation(); setMenuOpenId(null); setConfirmDeleteId(sn._id); }}
                       style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 7, background: "transparent", border: "none", color: isDark ? "#f87171" : "#dc2626", fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "'Inter',sans-serif", transition: "background 0.15s" }}
                       onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = isDark ? "rgba(239,68,68,0.08)" : "rgba(220,38,38,0.06)"; }}
                       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
