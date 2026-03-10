@@ -207,6 +207,13 @@ Visit `http://localhost:8080`
 
 ---
 
+## Author
+
+**Bhavya Mittal**
+- GitHub: [@bhavya310305-cyber](https://github.com/bhavya310305-cyber)
+
+---
+
 ## License
 
 MIT © [bhavya310305-cyber](https://github.com/bhavya310305-cyber)
