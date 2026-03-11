@@ -117,8 +117,8 @@ const Register = () => {
 
     if (Object.keys(newErrors).length === 0) {
       try {
-        await api.post("/api/auth/register", { name: form.fullName, email: form.email, password: form.password });
-        const loginRes = await api.post("/api/auth/login", { email: form.email, password: form.password });
+        await api.post("/auth/register", { name: form.fullName, email: form.email, password: form.password });
+        const loginRes = await api.post("/auth/login", { email: form.email, password: form.password });
         const u = loginRes.data.user ?? loginRes.data;
         setUser({ id: u._id, name: u.fullName, email: u.email });
         toast.success("Welcome to CodeCanvas!");
