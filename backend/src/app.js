@@ -21,5 +21,5 @@ app.use(cookieParser());
 app.use('/api/auth', authRoutes);
 app.use('/api/snippets', snippetRoutes);
 app.use('/api/ai', aiRoutes);
-
+app.use('/api/health', require('./routes/health.routes'));  
 module.exports = app;
