@@ -8,8 +8,10 @@ const aiRoutes = require('./routes/ai.routes');
 
 const app = express();
 
+const allowedOrigins = [process.env.CLIENT_URL || 'http://localhost:3000'];
+
 app.use(cors({ 
-    origin: ['http://localhost:5173', 'http://localhost:8080'],
+    origin: allowedOrigins,
     credentials: true,
 }))
 
