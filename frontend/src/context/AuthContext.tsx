@@ -23,7 +23,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const res = await api.get("/auth/me");
+        const res = await api.get("/auth/me", { withCredentials: true });
         setUser({
           id: res.data._id,
           name: res.data.fullName,
