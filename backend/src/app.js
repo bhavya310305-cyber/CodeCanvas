@@ -18,8 +18,8 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
-app.use('/api/auth', authRoutes);
-app.use('/api/snippets', snippetRoutes);
-app.use('/api/ai', aiRoutes);
-app.use('/api/health', require('./routes/health.routes'));  
+app.use('/auth', authRoutes);
+app.use('/snippets', snippetRoutes);
+app.use('/ai', aiRoutes);
+app.use('/health', require('./routes/health.routes'));  
 module.exports = app;
