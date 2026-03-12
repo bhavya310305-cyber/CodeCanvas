@@ -109,6 +109,10 @@ function getJsRunnerHtml(code: string, isTs: boolean): string {
         const __logs=[];
         const __push=(type,args)=>{__logs.push({type,args:args.map(a=>{try{return typeof a==='object'?JSON.stringify(a,null,2):String(a)}catch{return String(a)}})})};
         const console={log:(...a)=>__push('log',a),error:(...a)=>__push('error',a),warn:(...a)=>__push('warn',a),info:(...a)=>__push('info',a)};
+        window.alert=(msg)=>__push('log',['🔔 alert: '+String(msg)]);
+        window.confirm=(msg)=>{__push('log',['❓ confirm: '+String(msg)]);return true;};
+        window.prompt=(msg,def)=>{__push('log',['✏️ prompt: '+String(msg)]);return def??'';};
+        window.onerror=(msg)=>{__push('error',[msg]);window.parent.postMessage({type:'console',logs:__logs},'*');return true;};
         try{
           const jsCode=ts.transpileModule(\`${escapedCode}\`,{compilerOptions:{target:ts.ScriptTarget.ES2017,module:ts.ModuleKind.None,strict:false}}).outputText;
           eval(jsCode);
@@ -122,6 +126,10 @@ function getJsRunnerHtml(code: string, isTs: boolean): string {
       const __logs=[];
       const __push=(type,args)=>{__logs.push({type,args:args.map(a=>{try{return typeof a==='object'?JSON.stringify(a,null,2):String(a)}catch{return String(a)}})})};
       const console={log:(...a)=>__push('log',a),error:(...a)=>__push('error',a),warn:(...a)=>__push('warn',a),info:(...a)=>__push('info',a)};
+      window.alert=(msg)=>__push('log',['🔔 alert: '+String(msg)]);
+      window.confirm=(msg)=>{__push('log',['❓ confirm: '+String(msg)]);return true;};
+      window.prompt=(msg,def)=>{__push('log',['✏️ prompt: '+String(msg)]);return def??'';};
+      window.onerror=(msg)=>{__push('error',[msg]);window.parent.postMessage({type:'console',logs:__logs},'*');return true;};
       try{${code}}catch(e){__push('error',[e.message]);}
       window.parent.postMessage({type:'console',logs:__logs},'*');
     </script>
