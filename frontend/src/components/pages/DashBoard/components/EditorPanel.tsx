@@ -112,12 +112,13 @@ function getJsRunnerHtml(code: string, isTs: boolean): string {
         window.alert=(msg)=>__push('log',['🔔 alert: '+String(msg)]);
         window.confirm=(msg)=>{__push('log',['❓ confirm: '+String(msg)]);return true;};
         window.prompt=(msg,def)=>{__push('log',['✏️ prompt: '+String(msg)]);return def??'';};
-        window.onerror=(msg)=>{__push('error',[msg]);window.parent.postMessage({type:'console',logs:__logs},'*');return true;};
+        let __sent=false;
+        window.onerror=(msg)=>{__push('error',[msg]);window.parent.postMessage({type:'console',logs:__logs},'*');__sent=true;return true;};
         try{
           const jsCode=ts.transpileModule(\`${escapedCode}\`,{compilerOptions:{target:ts.ScriptTarget.ES2017,module:ts.ModuleKind.None,strict:false}}).outputText;
           eval(jsCode);
         }catch(e){__push('error',[e.message]);}
-        window.parent.postMessage({type:'console',logs:__logs},'*');
+        if(!__sent)window.parent.postMessage({type:'console',logs:__logs},'*');
       </script>
     </body></html>`;
   }
@@ -129,9 +130,10 @@ function getJsRunnerHtml(code: string, isTs: boolean): string {
       window.alert=(msg)=>__push('log',['🔔 alert: '+String(msg)]);
       window.confirm=(msg)=>{__push('log',['❓ confirm: '+String(msg)]);return true;};
       window.prompt=(msg,def)=>{__push('log',['✏️ prompt: '+String(msg)]);return def??'';};
-      window.onerror=(msg)=>{__push('error',[msg]);window.parent.postMessage({type:'console',logs:__logs},'*');return true;};
+      let __sent=false;
+      window.onerror=(msg)=>{__push('error',[msg]);window.parent.postMessage({type:'console',logs:__logs},'*');__sent=true;return true;};
       try{${code}}catch(e){__push('error',[e.message]);}
-      window.parent.postMessage({type:'console',logs:__logs},'*');
+      if(!__sent)window.parent.postMessage({type:'console',logs:__logs},'*');
     </script>
   </body></html>`;
 }
