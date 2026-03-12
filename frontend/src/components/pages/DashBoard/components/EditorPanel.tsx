@@ -588,11 +588,11 @@ export function EditorPanel({ active, openTabs, activeId, snippets, isDark, hist
 
             <div style={{ flex: 1, overflow: "hidden" }}>
               <Editor
-                key={isDark ? "dark" : "light"}
+                key={`${active._id}-${isDark ? "dark" : "light"}`}
                 height="100%"
                 theme={isDark ? "vs-dark" : "codecanvas-light"}
                 language={active.language}
-                value={active.code}
+                defaultValue={active.code}
                 onChange={handleCodeChange}
                 beforeMount={(monaco: Monaco) => {
                   monaco.editor.defineTheme("codecanvas-light", {
