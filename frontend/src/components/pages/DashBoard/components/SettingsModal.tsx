@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { User, Lock, Trash2 } from "lucide-react";
+import { User, Lock, Trash2, Eye, EyeOff } from "lucide-react";
 import api from "@/lib/axios";
 import { getInitials } from "../utils";
 
@@ -31,6 +31,10 @@ export function SettingsModal({ open, onClose, isDark, user, setUser, onLogout }
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [delMsg, setDelMsg] = useState("");
   const [loading, setLoading] = useState(false);
+  // ── Eye toggle states ──
+  const [showCurrentPw, setShowCurrentPw] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
 
   if (!open) return null;
 
@@ -54,6 +58,16 @@ export function SettingsModal({ open, onClose, isDark, user, setUser, onLogout }
     fontSize: 11, fontWeight: 600, color: T.textMuted,
     textTransform: "uppercase", letterSpacing: "0.08em",
     marginBottom: 6, display: "block",
+  };
+
+  const passwordFieldStyle: React.CSSProperties = {
+    position: "relative", display: "flex", alignItems: "center",
+  };
+
+  const eyeButtonStyle: React.CSSProperties = {
+    position: "absolute", right: 10, background: "none", border: "none",
+    cursor: "pointer", color: T.textMuted, display: "flex", alignItems: "center",
+    padding: 0,
   };
 
   async function handleSaveName() {
@@ -166,15 +180,30 @@ export function SettingsModal({ open, onClose, isDark, user, setUser, onLogout }
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div>
                 <label style={labelStyle}>Current Password</label>
-                <input type="password" value={currentPw} onChange={e => setCurrentPw(e.target.value)} style={inputStyle} placeholder="••••••••" />
+                <div style={passwordFieldStyle}>
+                  <input type={showCurrentPw ? "text" : "password"} value={currentPw} onChange={e => setCurrentPw(e.target.value)} style={{ ...inputStyle, paddingRight: 36 }} placeholder="••••••••" />
+                  <button style={eyeButtonStyle} onClick={() => setShowCurrentPw(v => !v)}>
+                    {showCurrentPw ? <EyeOff style={{ width: 15, height: 15 }} /> : <Eye style={{ width: 15, height: 15 }} />}
+                  </button>
+                </div>
               </div>
               <div>
                 <label style={labelStyle}>New Password</label>
-                <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)} style={inputStyle} placeholder="••••••••" />
+                <div style={passwordFieldStyle}>
+                  <input type={showNewPw ? "text" : "password"} value={newPw} onChange={e => setNewPw(e.target.value)} style={{ ...inputStyle, paddingRight: 36 }} placeholder="••••••••" />
+                  <button style={eyeButtonStyle} onClick={() => setShowNewPw(v => !v)}>
+                    {showNewPw ? <EyeOff style={{ width: 15, height: 15 }} /> : <Eye style={{ width: 15, height: 15 }} />}
+                  </button>
+                </div>
               </div>
               <div>
                 <label style={labelStyle}>Confirm New Password</label>
-                <input type="password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} style={inputStyle} placeholder="••••••••" />
+                <div style={passwordFieldStyle}>
+                  <input type={showConfirmPw ? "text" : "password"} value={confirmPw} onChange={e => setConfirmPw(e.target.value)} style={{ ...inputStyle, paddingRight: 36 }} placeholder="••••••••" />
+                  <button style={eyeButtonStyle} onClick={() => setShowConfirmPw(v => !v)}>
+                    {showConfirmPw ? <EyeOff style={{ width: 15, height: 15 }} /> : <Eye style={{ width: 15, height: 15 }} />}
+                  </button>
+                </div>
               </div>
               {pwMsg && (
                 <div style={{ fontSize: 12, color: pwErr ? "#f87171" : "#4ade80", padding: "8px 12px", borderRadius: 8, background: pwErr ? "rgba(239,68,68,0.08)" : "rgba(74,222,128,0.08)", border: `1px solid ${pwErr ? "rgba(239,68,68,0.2)" : "rgba(74,222,128,0.2)"}` }}>
