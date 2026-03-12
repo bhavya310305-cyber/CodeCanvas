@@ -94,6 +94,8 @@ const logout = async (req, res) => {
             httpOnly: true,
             expires: new Date(0),
             path: '/',
+            sameSite: 'none',
+            secure: true,
         });
         res.status(200).json({ message: 'Logged out successfully' });
     } catch (error) {
