@@ -15,6 +15,11 @@ const allowedOrigins = [
     process.env.CLIENT_URL,
 ].filter(Boolean);
 
+app.use((req, res, next) => {
+    res.setHeader("Cross-Origin-Opener-Policy", "unsafe-none");
+    next();
+});
+
 app.use(cors({ 
     origin: function(origin, callback) {
         if (!origin || allowedOrigins.includes(origin)) {
