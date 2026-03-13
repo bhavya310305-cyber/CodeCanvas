@@ -715,9 +715,9 @@ export function EditorPanel({ active, openTabs, activeId, snippets, isDark, hist
             <div style={{ flex: 1, overflow: "auto" }}>
               {isUnsupported && (() => {
                 const urls: Record<string, string> = {
-                  python: "https://onecompiler.com/python",
-                  java: "https://onecompiler.com/java",
-                  cpp: "https://onecompiler.com/cpp",
+                  python: "https://www.programiz.com/python-programming/online-compiler/",
+                  java: "https://www.programiz.com/java-programming/online-compiler/",
+                  cpp: "https://www.programiz.com/cpp-programming/online-compiler/",
                 };
                 const names: Record<string, string> = { python: "Python", java: "Java", cpp: "C++" };
                 const url = urls[active.language];
@@ -737,7 +737,9 @@ export function EditorPanel({ active, openTabs, activeId, snippets, isDark, hist
                     <button
                       onClick={() => {
                         navigator.clipboard.writeText(active.code).then(() => {
-                          window.open(url, "onecompiler");
+                          window.open(url, "programiz");
+                        }).catch(() => {
+                          window.open(url, "programiz");
                         });
                       }}
                       style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 20px", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 700, fontFamily: "'Inter',sans-serif", background: "linear-gradient(135deg, #f59e0b, #d97706)", border: "none", color: "white", boxShadow: "0 0 20px rgba(245,158,11,0.35)", transition: "all 0.15s" }}
@@ -745,9 +747,9 @@ export function EditorPanel({ active, openTabs, activeId, snippets, isDark, hist
                       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 20px rgba(245,158,11,0.35)"; }}
                     >
                       <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="5" y="5" width="8" height="9" rx="1.5" stroke="white" strokeWidth="1.4"/><path d="M10 5V4a1 1 0 00-1-1H4a1.5 1.5 0 00-1.5 1.5v7A1 1 0 003.5 12H5" stroke="white" strokeWidth="1.4" strokeLinecap="round"/></svg>
-                      Copy & Open OneCompiler
+                      Copy & Run on Programiz
                     </button>
-                    <div style={{ fontSize: 11, color: T.textMuted, opacity: 0.6 }}>Copies your code · Opens OneCompiler · Just paste & run</div>
+                    <div style={{ fontSize: 11, color: T.textMuted, opacity: 0.6 }}>Your code is copied · Select all & paste in Programiz · Hit Run</div>
                   </div>
                 );
               })()}
