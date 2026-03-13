@@ -5,6 +5,7 @@ export interface Snippet {
   code: string;
   tags: string[];
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface ChatMessage {

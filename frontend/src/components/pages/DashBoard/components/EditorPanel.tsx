@@ -183,6 +183,9 @@ export function EditorPanel({ active, openTabs, activeId, snippets, isDark, hist
   const [historyWidth, setHistoryWidth] = useState(300);
   const HISTORY_MIN = 260;
   const historyDragRef = useRef<{ startX: number; startWidth: number } | null>(null);
+  // ── Footer stats ──
+  const [cursorLine, setCursorLine] = useState(1);
+  const [cursorCol, setCursorCol] = useState(1);
 
   function handleHistoryDragStart(e: React.MouseEvent) {
     e.preventDefault();
@@ -596,7 +599,8 @@ export function EditorPanel({ active, openTabs, activeId, snippets, isDark, hist
               </div>
             </div>
 
-            <div style={{ flex: 1, overflow: "hidden" }}>
+            <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+              <div style={{ flex: 1, overflow: "hidden" }}>
               <Editor
                 key={`${active._id}-${isDark ? "dark" : "light"}`}
                 height="100%"
@@ -625,8 +629,27 @@ export function EditorPanel({ active, openTabs, activeId, snippets, isDark, hist
                     }
                   });
                 }}
+                onMount={(editor) => {
+                  editor.onDidChangeCursorPosition(e => {
+                    setCursorLine(e.position.lineNumber);
+                    setCursorCol(e.position.column);
+                  });
+                }}
                 options={{ fontSize: 14, minimap: { enabled: false }, padding: { top: 20 }, scrollBeyondLastLine: false, fontFamily: "'JetBrains Mono',monospace", lineNumbersMinChars: 3, scrollbar: { vertical: "auto", horizontal: "hidden" } }}
               />
+              </div>
+              {/* ── Footer ── */}
+              <div style={{ height: 26, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 14px", background: T.editorHeaderBg, borderTop: `1px solid ${T.border}`, fontSize: 11, fontFamily: "'JetBrains Mono',monospace", color: T.textMuted, userSelect: "none" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                  <span>Ln {cursorLine}, Col {cursorCol}</span>
+                  <span>{active.code.length} chars</span>
+                  <span>{active.code.split("\n").length} lines</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <svg width="10" height="10" viewBox="0 0 16 16" fill="none" style={{ opacity: 0.5 }}><circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.4"/><path d="M8 5v3.5l2 1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  <span>Edited {(() => { const d = new Date(active.updatedAt ?? active.createdAt); const diff = Date.now() - d.getTime(); if (diff < 60000) return "just now"; if (diff < 3600000) return `${Math.floor(diff/60000)}m ago`; if (diff < 86400000) return `${Math.floor(diff/3600000)}h ago`; return d.toLocaleDateString([], { month: "short", day: "numeric" }); })()}</span>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -713,17 +736,18 @@ export function EditorPanel({ active, openTabs, activeId, snippets, isDark, hist
                     </div>
                     <button
                       onClick={() => {
-                        const encoded = encodeURIComponent(active.code);
-                        window.open(`${url}?code=${encoded}`, "_blank");
+                        navigator.clipboard.writeText(active.code).then(() => {
+                          window.open(url, "onecompiler");
+                        });
                       }}
                       style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 20px", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 700, fontFamily: "'Inter',sans-serif", background: "linear-gradient(135deg, #f59e0b, #d97706)", border: "none", color: "white", boxShadow: "0 0 20px rgba(245,158,11,0.35)", transition: "all 0.15s" }}
                       onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 28px rgba(245,158,11,0.55)"; }}
                       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 20px rgba(245,158,11,0.35)"; }}
                     >
-                      <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 3l10 5-10 5V3z" fill="white"/></svg>
-                      Run on OneCompiler
+                      <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="5" y="5" width="8" height="9" rx="1.5" stroke="white" strokeWidth="1.4"/><path d="M10 5V4a1 1 0 00-1-1H4a1.5 1.5 0 00-1.5 1.5v7A1 1 0 003.5 12H5" stroke="white" strokeWidth="1.4" strokeLinecap="round"/></svg>
+                      Copy & Open OneCompiler
                     </button>
-                    <div style={{ fontSize: 11, color: T.textMuted, opacity: 0.6 }}>Opens OneCompiler in a new tab with your code</div>
+                    <div style={{ fontSize: 11, color: T.textMuted, opacity: 0.6 }}>Copies your code · Opens OneCompiler · Just paste & run</div>
                   </div>
                 );
               })()}
