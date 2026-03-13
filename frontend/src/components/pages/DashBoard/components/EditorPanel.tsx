@@ -132,7 +132,7 @@ function getJsRunnerHtml(code: string, isTs: boolean): string {
       window.prompt=(msg,def)=>{__push('log',['✏️ prompt: '+String(msg)]);return def??'';};
       let __sent=false;
       window.onerror=(msg)=>{__push('error',[msg]);window.parent.postMessage({type:'console',logs:__logs},'*');__sent=true;return true;};
-      try{${code}}catch(e){__push('error',[e.message]);}
+      try{eval(${JSON.stringify(code)});}catch(e){__push('error',[e.message]);}
       if(!__sent)window.parent.postMessage({type:'console',logs:__logs},'*');
     </script>
   </body></html>`;
