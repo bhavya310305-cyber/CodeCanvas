@@ -12,6 +12,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   setUser: (user: User | null) => void;
+  logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,8 +23,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     const checkAuth = async () => {
+      const token = localStorage.getItem('cc_token');
+      if (!token) {
+        setLoading(false);
+        return;
+      }
       try {
-        const res = await api.get("/auth/me", { withCredentials: true });
+        const res = await api.get("/auth/me");
         setUser({
           id: res.data._id,
           name: res.data.fullName,
@@ -33,6 +39,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (axios.isAxiosError(err)) {
           if (err.response?.status === 401) {
             console.log("User not logged in - this is normal.");
+            localStorage.removeItem('cc_token');
           } else {
             console.error("Auth check failed:", err.message);
           }
@@ -50,6 +57,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       res => res,
       err => {
         if (axios.isAxiosError(err) && err.response?.status === 401) {
+          localStorage.removeItem('cc_token');
           setUser(null);
         }
         return Promise.reject(err);
@@ -59,8 +67,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => api.interceptors.response.eject(interceptor);
   }, []);
 
+  const logout = () => {
+    localStorage.removeItem('cc_token');
+    setUser(null);
+    api.get("/auth/logout").catch(() => {});
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, setUser }}>
+    <AuthContext.Provider value={{ user, loading, setUser, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -84,6 +84,7 @@ const Register = () => {
     try {
       const res = await api.post("/auth/google", { credential });
       const u = res.data.user;
+      if (res.data.token) localStorage.setItem('cc_token', res.data.token);
       setUser({ id: u._id, name: u.fullName, email: u.email });
       toast.success(
         res.data.message === "Account created with Google"
@@ -119,6 +120,7 @@ const Register = () => {
         await api.post("/auth/register", { name: form.fullName, email: form.email, password: form.password });
         const loginRes = await api.post("/auth/login", { email: form.email, password: form.password });
         const u = loginRes.data.user ?? loginRes.data;
+        if (loginRes.data.token) localStorage.setItem('cc_token', loginRes.data.token);
         setUser({ id: u._id, name: u.fullName, email: u.email });
         toast.success("Welcome to CodeCanvas!");
         navigate("/dashboard");

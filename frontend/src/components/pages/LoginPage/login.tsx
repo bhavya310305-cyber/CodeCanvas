@@ -64,6 +64,7 @@ const Login = () => {
     try {
       const res = await api.post("/auth/google", { credential });
       const u = res.data.user;
+      if (res.data.token) localStorage.setItem('cc_token', res.data.token);
       setUser({ id: u._id, name: u.fullName, email: u.email });
       toast.success(
         res.data.message === "Account created with Google"
@@ -96,6 +97,7 @@ const Login = () => {
       try {
         const res = await api.post("/auth/login", { email, password });
         const u = res.data.user ?? res.data;
+        if (res.data.token) localStorage.setItem('cc_token', res.data.token);
         setUser({ id: u._id, name: u.fullName, email: u.email });
         toast.success("Welcome back!");
         navigate("/dashboard");

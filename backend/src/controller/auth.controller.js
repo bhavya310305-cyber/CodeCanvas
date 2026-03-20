@@ -15,8 +15,11 @@ const registerUser = async (req, res) => {
         await newUser.save();
 
         const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
-        res.cookie('token', token, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000, sameSite: 'none', secure: true });
-        res.status(201).json({ message: 'User registered successfully' });
+        res.status(201).json({
+            message: 'User registered successfully',
+            token,
+            user: { _id: newUser._id, fullName: newUser.fullName, email: newUser.email }
+        });
     } catch (error) {
         console.error('Error registering user:', error);
         res.status(500).json({ message: 'Server error' });
@@ -37,10 +40,9 @@ const loginUser = async (req, res) => {
         if (!isMatch) return res.status(400).json({ message: 'Invalid email or password' });
 
         const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
-        res.cookie('token', token, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000, sameSite: 'none', secure: true });
-
         res.status(200).json({
             message: 'User logged in successfully',
+            token,
             user: { _id: user._id, fullName: user.fullName, email: user.email }
         });
     } catch (error) {
@@ -66,9 +68,9 @@ const googleAuth = async (req, res) => {
         let user = await userModel.findOne({ email });
         if (user) {
             const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
-            res.cookie('token', token, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000, sameSite: 'none', secure: true });
             return res.status(200).json({
                 message: 'Logged in with Google',
+                token,
                 user: { _id: user._id, fullName: user.fullName, email: user.email }
             });
         }
@@ -77,9 +79,9 @@ const googleAuth = async (req, res) => {
         await newUser.save();
 
         const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
-        res.cookie('token', token, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000, sameSite: 'none', secure: true });
         res.status(201).json({
             message: 'Account created with Google',
+            token,
             user: { _id: newUser._id, fullName: newUser.fullName, email: newUser.email }
         });
     } catch (error) {
@@ -90,13 +92,6 @@ const googleAuth = async (req, res) => {
 
 const logout = async (req, res) => {
     try {
-        res.cookie('token', '', {
-            httpOnly: true,
-            expires: new Date(0),
-            path: '/',
-            sameSite: 'none',
-            secure: true,
-        });
         res.status(200).json({ message: 'Logged out successfully' });
     } catch (error) {
         console.error('Error logging out:', error);
@@ -161,12 +156,6 @@ const deleteAccount = async (req, res) => {
     try {
         const user = await userModel.findByIdAndDelete(req.user.id);
         if (!user) return res.status(404).json({ message: 'User not found' });
-
-        res.cookie('token', '', {
-            httpOnly: true,
-            expires: new Date(0),
-            path: '/',
-        });
         res.status(200).json({ message: 'Account deleted successfully' });
     } catch (error) {
         console.error('Error deleting account:', error);
